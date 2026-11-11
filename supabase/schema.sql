@@ -1,0 +1,3 @@
+-- Preparación para fase Supabase. Aún no ejecutar.
+-- Se implementarán tablas compartidas y políticas RLS para Camila (admin) y Luisda (compras).
+-- No publicar datos operativos sin autenticación y políticas por rol.
