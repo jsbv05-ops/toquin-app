@@ -1,0 +1,17 @@
+{
+  "name": "TOQUIN APP",
+  "short_name": "TOQUIN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fff3df",
+  "theme_color": "#f47721",
+  "lang": "es-CO",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
