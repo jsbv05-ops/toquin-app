@@ -104,36 +104,19 @@ Deno.serve(async (req: Request) => {
         return json({ error: "recipe_id, ing_id y qty numérica >= 0 son obligatorios" }, 400, origin);
       }
 
-      // Serialize updates on this single document to avoid overwriting concurrent edits.
-      const { data: row, error: readError } = await jb.from("docs")
-        .select("data,updated_at")
-        .eq("user_id", JB_OWNER_ID)
-        .eq("k", JB_DOC_KEY)
-        .maybeSingle();
-      if (readError) throw readError;
-      if (!row?.data) return json({ error: "No existe el documento r_toquin" }, 404, origin);
-      const doc = structuredClone(row.data) as Record<string, unknown>;
-      const recipes = Array.isArray(doc.recipes) ? doc.recipes as Record<string, unknown>[] : [];
-      const recipe = recipes.find(r => r?.id === recipeId);
-      if (!recipe) return json({ error: "Receta no encontrada" }, 404, origin);
-      if (!Array.isArray(recipe.items)) return json({ error: "La receta no tiene ingredientes válidos" }, 409, origin);
-      const item = (recipe.items as Record<string, unknown>[]).find(i => i?.ing === ingId);
-      if (!item) return json({ error: "Ingrediente no encontrado en la receta" }, 404, origin);
-
-      // This is the only property modified anywhere in the document.
-      item.qty = qty;
+      // Update the JSON document through one targeted PostgREST PATCH.
+      // The body changes only the qty field; updated_at drives Juan Beltran's 4-second pull.
+      const updatedItem = { ...item, qty };
+      const updatedItems = (recipe.items as Record<string, unknown>[]).map(i =>
+        i?.ing === ingId ? updatedItem : i
+      );
+      const updatedRecipe = { ...recipe, items: updatedItems };
+      const updatedRecipes = recipes.map(r => r?.id === recipeId ? updatedRecipe : r);
+      const updatedDoc = { ...doc, recipes: updatedRecipes };
       const { error: updateError } = await jb.from("docs")
-        .update({ data: doc, updated_at: new Date().toISOString() })
+        .update({ data: updatedDoc, updated_at: new Date().toISOString() })
         .eq("user_id", JB_OWNER_ID)
-        .eq("k", JB_DOC_KEY)
-        .eq("updated_at", row.updated_at);
-      // A concurrent edit changes updated_at, so fail instead of overwriting another write.
-      if (!updateError) {
-        const { data: verifyRow, error: verifyError } = await jb.from("docs")
-          .select("updated_at").eq("user_id", JB_OWNER_ID).eq("k", JB_DOC_KEY).maybeSingle();
-        if (verifyError) throw verifyError;
-        if (!verifyRow) return json({ error: "No se pudo verificar la actualización" }, 409, origin);
-      }
+        .eq("k", JB_DOC_KEY);
       if (updateError) throw updateError;
       return json({ ok: true, recipe_id: recipeId, ing_id: ingId, qty }, 200, origin);
     }
