@@ -96,7 +96,7 @@
     root.innerHTML=header()+'<h1>Operación TOQUÍN</h1>'+box('<p>Horario, turnos, tarifas y nómina compartidos entre dispositivos.</p><button class="btn" id="openOps">Abrir horario y nómina</button> <button class="btn secondary" id="openRecipes">Recetas</button><p id="syncInfo" class="hint">'+(error?'Sin conexión de datos: '+h(error.message):'Última actualización: '+h(data?.updated_at||'Aún sin datos'))+'</p>')+(profile.role==='admin'?usersPanel():'');
     bindHeader();
     document.getElementById('openRecipes').onclick=()=>window.TOQUIN_RECIPES?.open();
-    document.getElementById('openOps').onclick=()=>{if(window.TOQUIN_LEGACY)window.TOQUIN_LEGACY.setState(data?.data||{});location.hash='#operacion';document.getElementById('syncInfo').textContent='Horario y nómina compartidos activos.';};
+    document.getElementById('openOps').onclick=()=>{if(window.TOQUIN_LEGACY)window.TOQUIN_LEGACY.setState(data?.data||{});window.home=()=>staffHome();window.enter('camila');};
     if(profile.role==='admin'){
       document.getElementById('createAccount').onclick=async()=>{
         const username=document.getElementById('createUsername').value.trim().toLowerCase();

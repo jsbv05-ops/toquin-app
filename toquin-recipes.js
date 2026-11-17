@@ -76,7 +76,7 @@
   function goBack(){selected=null;renderList()}
   function renderList(){
     if(!data)return;
-    root.dataset.view='list';
+    (root=$('root')).dataset.view='list';
     const R=data, cats=R.categories||[], recs=R.recipes||[];
     const list=recs.filter(r=>(category==='all'||r.cat===category)&&(!query||String(r.name||'').toLowerCase().includes(query.toLowerCase())||catName(R,r.cat).toLowerCase().includes(query.toLowerCase())));
     shell('<div class="tr-top"><div><div class="tr-muted">TOQUÍN · RECETAS COMPARTIDAS</div><h1>Recetas</h1><div class="tr-muted">Datos sincronizados desde Juan Beltran</div></div><button class="tr-btn alt" id="trExit">← Volver a operación</button></div>'+
@@ -98,7 +98,7 @@
   }
   function renderDetail(){
     if(!data||!selected)return renderList();
-    root.dataset.view='detail';
+    (root=$('root')).dataset.view='detail';
     const R=data,r=selected,c=calc(r,R);
     const rows=c.lines.map((l,i)=>{
       const ing=l.ing||{},qty=l.it.qty??0,unit=ing.unit||'';
