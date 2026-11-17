@@ -98,6 +98,19 @@
     if(data?.data&&window.TOQUIN_LEGACY)window.TOQUIN_LEGACY.setState(data.data);
     listenSync();
     window.home=()=>staffHome();
+    window.TOQUIN_ACCOUNT_BAR=()=>'<span class="muted">'+h(profile.display_name)+'</span><span><button class="btn secondary" onclick="toqPass()">Contraseña</button> '+(profile.role==='admin'?'<button class="btn secondary" onclick="toqUsers()">Usuarios</button> ':'')+'<button class="btn danger" onclick="toqLogout()">Salir</button></span>';
+    window.toqLogout=async()=>{if(live)await client.removeChannel(live);await window.TOQUIN_RECIPES?.logout?.();await client.auth.signOut();user=null;profile=null;window.TOQUIN_ACCOUNT_BAR=null;login();};
+    window.toqUsers=()=>staffHome();
+    window.toqPass=()=>{
+      root.innerHTML=box('<h2>Cambiar contraseña</h2><label class="field">Nueva contraseña<input id="nextPassword" type="password" minlength="10"></label><button class="btn" id="savePassword">Guardar</button> <button class="btn secondary" id="backOps">← Volver</button><p class="hint" id="passwordMessage"></p>');
+      document.getElementById('backOps').onclick=()=>window.enter('camila');
+      document.getElementById('savePassword').onclick=async()=>{
+        const password=document.getElementById('nextPassword').value;
+        if(password.length<10)return document.getElementById('passwordMessage').textContent='Usa al menos 10 caracteres.';
+        const {error}=await client.auth.updateUser({password});
+        document.getElementById('passwordMessage').textContent=error?.message||'Contraseña actualizada.';
+      };
+    };
     window.enter('camila');
   }
   async function staffHome(){
