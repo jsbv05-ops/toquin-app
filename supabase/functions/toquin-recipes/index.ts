@@ -59,7 +59,7 @@ Deno.serve(async (req: Request) => {
       return json({ error: "No tienes permiso para acceder a Recetas" }, 403, origin);
     }
 
-    const jbUrl = Deno.env.get("SUPABASE_URL");
+    const jbUrl = Deno.env.get("SUPABASE_URL") || "https://sopvoedhxwuwbmvkysua.supabase.co";
     const jbServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!jbUrl || !jbServiceKey) {
       console.error("Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en el proyecto Juan Beltran");
