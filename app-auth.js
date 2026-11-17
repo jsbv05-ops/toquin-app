@@ -53,8 +53,7 @@
       document.getElementById('savePassword').onclick=async()=>{
         const password=document.getElementById('nextPassword').value;
         if(password.length<10)return document.getElementById('passwordMessage').textContent='Usa al menos 10 caracteres.';
-        const {error}=await client.auth.updateUser({password});
-        document.getElementById('passwordMessage').textContent=error?.message||'Contraseña actualizada.';
+        try{await window.TOQUIN_RECIPES?.updatePassword?.(password);const {error}=await client.auth.updateUser({password});if(error)throw error;document.getElementById('passwordMessage').textContent='Contraseña actualizada en ambos proyectos.';}catch(e){document.getElementById('passwordMessage').textContent='No se pudo sincronizar la contraseña: '+e.message;}
       };
     });
   }
