@@ -120,7 +120,7 @@ alter table public.notifications enable row level security;
 
 drop policy if exists orders_select_participants on public.purchase_orders;
 create policy orders_select_participants on public.purchase_orders for select to authenticated
-using(public.has_toquin_role(array['admin','toquijefe','tachu']::public.toquin_role[]));
+using(public.has_toquin_role(array['admin','toquijefe']::public.toquin_role[]) or (created_by=auth.uid() and public.has_toquin_role(array['tachu']::public.toquin_role[])));
 drop policy if exists orders_insert_tachu on public.purchase_orders;
 create policy orders_insert_tachu on public.purchase_orders for insert to authenticated
 with check(created_by=auth.uid() and public.has_toquin_role(array['admin','tachu']::public.toquin_role[]));
@@ -134,7 +134,7 @@ using(public.has_toquin_role(array['admin']::public.toquin_role[]));
 
 drop policy if exists order_items_select_participants on public.purchase_order_items;
 create policy order_items_select_participants on public.purchase_order_items for select to authenticated
-using(exists(select 1 from public.purchase_orders o where o.id=order_id));
+using(exists(select 1 from public.purchase_orders o where o.id=order_id and (public.has_toquin_role(array['admin','toquijefe']::public.toquin_role[]) or (o.created_by=auth.uid() and public.has_toquin_role(array['tachu']::public.toquin_role[])))));
 drop policy if exists order_items_insert_tachu on public.purchase_order_items;
 create policy order_items_insert_tachu on public.purchase_order_items for insert to authenticated
 with check(exists(select 1 from public.purchase_orders o where o.id=order_id)
@@ -149,7 +149,7 @@ using(public.has_toquin_role(array['admin']::public.toquin_role[]));
 
 drop policy if exists order_notes_select_participants on public.order_item_notes;
 create policy order_notes_select_participants on public.order_item_notes for select to authenticated
-using(exists(select 1 from public.purchase_order_items i join public.purchase_orders o on o.id=i.order_id where i.id=order_item_id));
+using(exists(select 1 from public.purchase_order_items i join public.purchase_orders o on o.id=i.order_id where i.id=order_item_id and (public.has_toquin_role(array['admin','toquijefe']::public.toquin_role[]) or (o.created_by=auth.uid() and public.has_toquin_role(array['tachu']::public.toquin_role[])))));
 drop policy if exists order_notes_insert_participants on public.order_item_notes;
 create policy order_notes_insert_participants on public.order_item_notes for insert to authenticated
 with check(author_id=auth.uid() and public.has_toquin_role(array['admin','toquijefe','tachu']::public.toquin_role[])
