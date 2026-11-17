@@ -15,6 +15,7 @@ jobs:
       - name: Check frontend JavaScript syntax
         run: |
           node --check toquin-recipes.js
+          npx --yes deno check supabase/functions/toquin-recipes/index.ts
           node --check app-auth.js
           node --check config.js
           node --check sw.js
