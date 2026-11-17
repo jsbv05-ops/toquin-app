@@ -46,7 +46,7 @@
     return '<div class="row"><b>'+h(profile.display_name)+' · '+h(roles[profile.role])+'</b><div><button class="btn secondary" id="changePassword">Cambiar contraseña</button> <button class="btn danger" id="logout">Cerrar sesión</button></div></div><div id="profileBox"></div>';
   }
   function bindHeader(){
-    document.getElementById('logout')?.addEventListener('click',async()=>{if(live)await client.removeChannel(live);await client.auth.signOut();user=null;profile=null;login();});
+    document.getElementById('logout')?.addEventListener('click',async()=>{if(live)await client.removeChannel(live);await window.TOQUIN_RECIPES?.logout?.();await client.auth.signOut();user=null;profile=null;login();});
     document.getElementById('changePassword')?.addEventListener('click',()=>{
       const el=document.getElementById('profileBox');
       el.innerHTML=box('<label class="field">Nueva contraseña<input id="nextPassword" type="password" minlength="10"></label><button class="btn" id="savePassword">Guardar</button><p class="hint" id="passwordMessage"></p>');
