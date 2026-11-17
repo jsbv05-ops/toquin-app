@@ -125,7 +125,15 @@ Deno.serve(async (req: Request) => {
       const { error: updateError } = await jb.from("docs")
         .update({ data: doc, updated_at: new Date().toISOString() })
         .eq("user_id", JB_OWNER_ID)
-        .eq("k", JB_DOC_KEY);
+        .eq("k", JB_DOC_KEY)
+        .eq("updated_at", row.updated_at);
+      // A concurrent edit changes updated_at, so fail instead of overwriting another write.
+      if (!updateError) {
+        const { data: verifyRow, error: verifyError } = await jb.from("docs")
+          .select("updated_at").eq("user_id", JB_OWNER_ID).eq("k", JB_DOC_KEY).maybeSingle();
+        if (verifyError) throw verifyError;
+        if (!verifyRow) return json({ error: "No se pudo verificar la actualización" }, 409, origin);
+      }
       if (updateError) throw updateError;
       return json({ ok: true, recipe_id: recipeId, ing_id: ingId, qty }, 200, origin);
     }
