@@ -106,7 +106,7 @@ Deno.serve(async (req: Request) => {
 
       // Serialize updates on this single document to avoid overwriting concurrent edits.
       const { data: row, error: readError } = await jb.from("docs")
-        .select("data")
+        .select("data,updated_at")
         .eq("user_id", JB_OWNER_ID)
         .eq("k", JB_DOC_KEY)
         .maybeSingle();
