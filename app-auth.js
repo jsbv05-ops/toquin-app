@@ -9,6 +9,7 @@
   const roles = { admin: 'JuanChef · Administrador', toquijefa: 'Toquijefa', toquijefe: 'Toquijefe', tachu: 'Tachu' };
   const h = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let user = null, profile = null, live = null;
+  const recipeAccessToken = async () => { const {data,error}=await client.auth.getSession(); if(error)throw error; return data.session?.access_token || null; };
   function box(s){return '<div class="panel">'+s+'</div>';}
   function login(message=''){
     root.innerHTML=box('<h1>Iniciar sesión</h1><p class="muted">Acceso del equipo TOQUÍN</p><label class="field">Usuario<input id="loginName" autocomplete="username"></label><label class="field">Contraseña<input id="loginPassword" type="password" autocomplete="current-password"></label><label class="item"><input id="rememberLogin" type="checkbox" checked><span>Recordar en este celular</span></label><button class="btn" id="loginButton">Entrar</button><p id="loginMessage" class="hint">'+h(message)+'</p>');
@@ -34,7 +35,7 @@
     if(error||!data){await client.auth.signOut();user=null;return login('Perfil sin configurar. Contacta a JuanChef.');}
     profile=data;
     if(['admin','toquijefa'].includes(profile.role)){
-      if(window.TOQUIN_RECIPES) await window.TOQUIN_RECIPES.init({username:credentials?.username,password:credentials?.password,role:profile.role});
+      if(window.TOQUIN_RECIPES) await window.TOQUIN_RECIPES.init({role:profile.role,getAccessToken:recipeAccessToken});
       window.TOQUIN_RETURN_STAFF=staffHome;
       return staffHome();
     }
@@ -53,7 +54,8 @@
       document.getElementById('savePassword').onclick=async()=>{
         const password=document.getElementById('nextPassword').value;
         if(password.length<10)return document.getElementById('passwordMessage').textContent='Usa al menos 10 caracteres.';
-        try{await window.TOQUIN_RECIPES?.updatePassword?.(password);const {error}=await client.auth.updateUser({password});if(error)throw error;document.getElementById('passwordMessage').textContent='Contraseña actualizada en ambos proyectos.';}catch(e){document.getElementById('passwordMessage').textContent='No se pudo sincronizar la contraseña: '+e.message;}
+        const {error}=await client.auth.updateUser({password});
+        document.getElementById('passwordMessage').textContent=error?.message||'Contraseña actualizada.';
       };
     });
   }
