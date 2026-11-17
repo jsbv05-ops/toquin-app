@@ -1,14 +1,14 @@
 /* TOQUIN APP · Recetas compartidas desde Juan Beltran. Solo lectura + edición de cantidades. */
 (() => {
   'use strict';
-  const URL='https://sopvoedhxwuwbmvkysua.supabase.co';
-  const KEY='sb_publishable_KMKqGqxC27pXxKSufAf8QA_g5dqFKoH';
+  const FUNCTION_URL='https://sopvoedhxwuwbmvkysua.supabase.co/functions/v1/toquin-recipes';
+  const FUNCTION_KEY='sb_publishable_KMKqGqxwuwbmvkysua.supabase.co';
   const $=id=>document.getElementById(id);
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const n=v=>{const x=Number(v);return Number.isFinite(x)?x:0};
   const money=v=>new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(n(v));
   const pct=v=>(n(v)*100).toFixed(1).replace('.',',')+'%';
-  let sb=null, data=null, role='', username='', selected=null, query='', category='all', timer=null, busy=false, root=null, lastError='';
+  let data=null, role='', selected=null, query='', category='all', timer=null, busy=false, root=null, lastError='', getAccessToken=null;
   const unitCost=i=>{const q=n(i.pack)*(n(i.yield||100)/100);return q>0?n(i.price)/q:0};
   const recipeById=(R,id)=>(R.recipes||[]).find(r=>r.id===id);
   const recipeCostPerPortion=(rec,R,path=new Set())=>{
@@ -42,24 +42,23 @@
     return {lines,base,err,total,portions,perPortion:per,price,margin,foodCost,opex,opexAmt,net,netTotal:net*portions,target,suggested:den>0?per/den:0,missing};
   };
   const catName=(R,id)=>R.categories?.find(c=>c.id===id)?.name||'Sin categoría';
-  async function auth(username,password){
-    sb=window.supabase.createClient(URL,KEY,{auth:{persistSession:true,autoRefreshToken:true,storage:window.localStorage,storageKey:'toquin_jb_auth'}});
-    const {data:sessionData,error}=await sb.auth.getSession();
-    if(error)throw error;
-    const expected=username?username.toLowerCase()+'@toquin.app':null;
-    if(sessionData.session && (!expected || sessionData.session.user?.email?.toLowerCase()===expected))return;
-    if(sessionData.session)await sb.auth.signOut();
-    if(!username||!password)throw new Error('Para habilitar Recetas, inicia sesión con una cuenta equivalente en el proyecto de Juan Beltran.');
-    const {error:loginError}=await sb.auth.signInWithPassword({email:username.toLowerCase()+'@toquin.app',password});
-    if(loginError)throw new Error('No se pudo abrir la sesión de Recetas en Juan Beltran: '+loginError.message);
+  async function request(payload){
+    const token=await getAccessToken?.();
+    if(!token)throw new Error('No se encontró una sesión activa de TOQUIN.');
+    const response=await fetch(FUNCTION_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json',apikey:FUNCTION_KEY,Authorization:'Bearer '+token},
+      body:JSON.stringify(payload)
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(result.error||'Error al consultar las recetas.');
+    return result;
   }
   async function pull(){
-    if(!sb||busy||document.visibilityState==='hidden')return;
+    if(!getAccessToken||busy||document.visibilityState==='hidden')return;
     busy=true;
     try{
-      const {data:result,error}=await sb.rpc('get_toquin_recipes');
-      if(error)throw error;
-      data=result;
+      data=await request({action:'get'});
       if(selected)selected=(data.recipes||[]).find(r=>r.id===selected.id)||null;
       lastError='';
       const editing=document.activeElement?.id==='trSearch'||document.activeElement?.hasAttribute('data-qty');
@@ -94,8 +93,7 @@
   async function saveQty(recipeId,ingId,value){
     const qty=Number(value);
     if(!Number.isFinite(qty)||qty<0)throw new Error('La cantidad debe ser un número mayor o igual a cero.');
-    const {error}=await sb.rpc('set_toquin_recipe_qty',{p_recipe_id:recipeId,p_ing_id:ingId,p_qty:qty});
-    if(error)throw error;
+    await request({action:'set_qty',recipe_id:recipeId,ing_id:ingId,qty});
     await pull();
   }
   function renderDetail(){
@@ -149,13 +147,15 @@
     const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=(r.name||'receta').replace(/[\\/:*?"<>|]/g,'')+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
   }
   async function init(opts={}){
-    role=opts.role||'';username=opts.username||'';
-    try{await auth(username,opts.password);await pull();clearInterval(timer);timer=setInterval(pull,4000);renderList();return true}
+    role=opts.role||'';
+    getAccessToken=opts.getAccessToken;
+    if(!['admin','toquijefa'].includes(role))return false;
+    if(typeof getAccessToken!=='function'){lastError='No hay una sesión activa de TOQUIN.';return false;}
+    try{await pull();clearInterval(timer);timer=setInterval(pull,4000);return !!data}
     catch(e){lastError=e.message;data=null;return false}
   }
   window.TOQUIN_RECIPES={
-    init,updatePassword:async(password)=>{if(!sb)return;const {data:sd}=await sb.auth.getSession();if(sd.session){const {error}=await sb.auth.updateUser({password});if(error)throw error;}},
-    logout:async()=>{clearInterval(timer);if(sb)await sb.auth.signOut();data=null;selected=null;},
+    init,logout:async()=>{clearInterval(timer);data=null;selected=null;getAccessToken=null;},
     open:()=>{if(data)renderList();else alert(lastError||'Recetas no disponibles.')}
   };
 })();
