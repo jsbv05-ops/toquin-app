@@ -36,8 +36,8 @@
     profile=data;
     if(['admin','toquijefa'].includes(profile.role)){
       if(window.TOQUIN_RECIPES) await window.TOQUIN_RECIPES.init({role:profile.role,getAccessToken:recipeAccessToken});
-      window.TOQUIN_RETURN_STAFF=staffHome;
-      return staffHome();
+      window.TOQUIN_RETURN_STAFF=opsHome;
+      return opsHome();
     }
     if(profile.role==='toquijefe')return ordersHome(false);
     if(profile.role==='tachu')return ordersHome(true);
@@ -89,10 +89,21 @@
       catch(e){alert(e.message);}
     });
   }
+  function listenSync(){
+    if(window.__toqSync)return;window.__toqSync=true;
+    window.addEventListener('toquin-state-changed', async event => { try { await client.from('app_state').upsert({id:'main',data:event.detail,updated_by:user.id,updated_at:new Date().toISOString()}); } catch(e) { console.warn('sync failed',e); } });
+  }
+  async function opsHome(){
+    const {data}=await client.from('app_state').select('data,updated_at').eq('id','main').maybeSingle();
+    if(data?.data&&window.TOQUIN_LEGACY)window.TOQUIN_LEGACY.setState(data.data);
+    listenSync();
+    window.home=()=>staffHome();
+    window.enter('camila');
+  }
   async function staffHome(){
     const {data,error}=await client.from('app_state').select('data,updated_at').eq('id','main').maybeSingle();
     if(data?.data && window.TOQUIN_LEGACY) window.TOQUIN_LEGACY.setState(data.data);
-    window.addEventListener('toquin-state-changed', async event => { try { await client.from('app_state').upsert({id:'main',data:event.detail,updated_by:user.id,updated_at:new Date().toISOString()}); } catch(e) { console.warn('sync failed',e); } });
+    listenSync();
     root.innerHTML=header()+'<h1>Operación TOQUÍN</h1>'+box('<p>Horario, turnos, tarifas y nómina compartidos entre dispositivos.</p><button class="btn" id="openOps">Abrir horario y nómina</button> <button class="btn secondary" id="openRecipes">Recetas</button><p id="syncInfo" class="hint">'+(error?'Sin conexión de datos: '+h(error.message):'Última actualización: '+h(data?.updated_at||'Aún sin datos'))+'</p>')+(profile.role==='admin'?usersPanel():'');
     bindHeader();
     document.getElementById('openRecipes').onclick=()=>window.TOQUIN_RECIPES?.open();

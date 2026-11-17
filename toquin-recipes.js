@@ -62,7 +62,7 @@
       if(selected)selected=(data.recipes||[]).find(r=>r.id===selected.id)||null;
       lastError='';
       const editing=document.activeElement?.id==='trSearch'||document.activeElement?.hasAttribute('data-qty');
-      if(!editing){if(root?.dataset.view==='list')renderList();else if(root?.dataset.view==='detail'&&selected)renderDetail();}
+      if(!editing&&document.querySelector('#root .tr-wrap')){if(root?.dataset.view==='list')renderList();else if(root?.dataset.view==='detail'&&selected)renderDetail();}
       const stamp=$('recipeSyncStamp');if(stamp)stamp.textContent='Sincronizado '+new Date().toLocaleTimeString('es-CO');
     }catch(e){lastError=e.message;const el=$('recipeError');if(el)el.textContent='No se pudo actualizar: '+e.message}
     finally{busy=false}
