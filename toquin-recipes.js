@@ -62,8 +62,8 @@
       data=result;
       if(selected)selected=(data.recipes||[]).find(r=>r.id===selected.id)||null;
       lastError='';
-      if(root?.dataset.view==='list')renderList();
-      else if(root?.dataset.view==='detail'&&selected)renderDetail();
+      const editing=document.activeElement?.id==='trSearch'||document.activeElement?.hasAttribute('data-qty');
+      if(!editing){if(root?.dataset.view==='list')renderList();else if(root?.dataset.view==='detail'&&selected)renderDetail();}
       const stamp=$('recipeSyncStamp');if(stamp)stamp.textContent='Sincronizado '+new Date().toLocaleTimeString('es-CO');
     }catch(e){lastError=e.message;const el=$('recipeError');if(el)el.textContent='No se pudo actualizar: '+e.message}
     finally{busy=false}
@@ -133,9 +133,8 @@
     });
     const w=1200,pad=78,rowH=88,headH=270,foot=64,h=headH+lines.length*rowH+foot,canvas=document.createElement('canvas');
     canvas.width=w;canvas.height=h;const c=canvas.getContext('2d');
-    const accent='#173C32',ink='#F3EBDD';
-    let logo=null;
-    if(R.logo){logo=await new Promise(resolve=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>resolve(im);im.onerror=()=>resolve(null);im.src=R.logo})}
+    const accent='#f47721',ink='#fff3df';
+    let logo=await new Promise(resolve=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>resolve(null);im.src='./logo-toquin.jpg'});
     const contain=(im,x,y,mw,mh)=>{if(!im)return;const iw=im.naturalWidth||im.width,ih=im.naturalHeight||im.height,s=Math.min(mw/iw,mh/ih),dw=iw*s,dh=ih*s;c.drawImage(im,x+(mw-dw)/2,y+(mh-dh)/2,dw,dh)};
     c.fillStyle='#FBF8F2';c.fillRect(0,0,w,h);c.fillStyle=accent;c.fillRect(0,0,w,238);c.fillRect(0,0,22,h);
     if(logo){c.fillStyle='rgba(255,255,255,.94)';c.beginPath();c.roundRect(pad,42,150,150,24);c.fill();contain(logo,pad+12,54,126,126)}
