@@ -46,7 +46,9 @@
     sb=window.supabase.createClient(URL,KEY,{auth:{persistSession:true,autoRefreshToken:true,storage:window.localStorage,storageKey:'toquin_jb_auth'}});
     const {data:sessionData,error}=await sb.auth.getSession();
     if(error)throw error;
-    if(sessionData.session)return;
+    const expected=username?username.toLowerCase()+'@toquin.app':null;
+    if(sessionData.session && (!expected || sessionData.session.user?.email?.toLowerCase()===expected))return;
+    if(sessionData.session)await sb.auth.signOut();
     if(!username||!password)throw new Error('Para habilitar Recetas, inicia sesión con una cuenta equivalente en el proyecto de Juan Beltran.');
     const {error:loginError}=await sb.auth.signInWithPassword({email:username.toLowerCase()+'@toquin.app',password});
     if(loginError)throw new Error('No se pudo abrir la sesión de Recetas en Juan Beltran: '+loginError.message);
@@ -152,5 +154,8 @@
     try{await auth(username,opts.password);await pull();clearInterval(timer);timer=setInterval(pull,4000);renderList();return true}
     catch(e){lastError=e.message;data=null;return false}
   }
-  window.TOQUIN_RECIPES={init,open:()=>{if(data)renderList();else alert(lastError||'Recetas no disponibles.')}};
+  window.TOQUIN_RECIPES={
+    init,logout:async()=>{clearInterval(timer);if(sb)await sb.auth.signOut();data=null;selected=null;},
+    open:()=>{if(data)renderList();else alert(lastError||'Recetas no disponibles.')}
+  };
 })();
