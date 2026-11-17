@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const FUNCTION_URL='https://sopvoedhxwuwbmvkysua.supabase.co/functions/v1/toquin-recipes';
-  const FUNCTION_KEY='sb_publishable_KMKqGqxwuwbmvkysua.supabase.co';
+  const FUNCTION_KEY='sb_publishable_KMKqGqxC27pXxKSufAf8QA_g5dqFKoH';
   const $=id=>document.getElementById(id);
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const n=v=>{const x=Number(v);return Number.isFinite(x)?x:0};
