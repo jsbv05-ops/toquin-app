@@ -154,7 +154,8 @@
     catch(e){lastError=e.message;data=null;return false}
   }
   window.TOQUIN_RECIPES={
-    init,logout:async()=>{clearInterval(timer);if(sb)await sb.auth.signOut();data=null;selected=null;},
+    init,updatePassword:async(password)=>{if(!sb)return;const {data:sd}=await sb.auth.getSession();if(sd.session){const {error}=await sb.auth.updateUser({password});if(error)throw error;}},
+    logout:async()=>{clearInterval(timer);if(sb)await sb.auth.signOut();data=null;selected=null;},
     open:()=>{if(data)renderList();else alert(lastError||'Recetas no disponibles.')}
   };
 })();
