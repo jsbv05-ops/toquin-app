@@ -8,7 +8,8 @@ create table if not exists public.toquin_share (
   reader_user_id uuid not null,
   can_edit_qty boolean not null default true,
   created_at timestamptz not null default now(),
-  primary key (owner_user_id, reader_user_id)
+  primary key (owner_user_id, reader_user_id),
+  unique (reader_user_id)
 );
 
 alter table public.toquin_share enable row level security;
