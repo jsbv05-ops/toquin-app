@@ -22,18 +22,22 @@
         }
         const {error}=await client.auth.signInWithPassword({email:name+'@toquin.app',password});
         if(error)throw error;
-        await start();
+        await start({username:name,password});
       }catch(e){login(e.message||'No se pudo iniciar sesión.');}
     };
   }
-  async function start(){
+  async function start(credentials){
     const {data:{session}}=await client.auth.getSession();
     user=session?.user||null;
     if(!user){profile=null;return login();}
     const {data,error}=await client.from('profiles').select('id,username,display_name,role').eq('id',user.id).single();
     if(error||!data){await client.auth.signOut();user=null;return login('Perfil sin configurar. Contacta a JuanChef.');}
     profile=data;
-    if(['admin','toquijefa'].includes(profile.role))return staffHome();
+    if(['admin','toquijefa'].includes(profile.role)){
+      if(window.TOQUIN_RECIPES) await window.TOQUIN_RECIPES.init({username:credentials?.username,password:credentials?.password,role:profile.role});
+      window.TOQUIN_RETURN_STAFF=staffHome;
+      return staffHome();
+    }
     if(profile.role==='toquijefe')return ordersHome(false);
     if(profile.role==='tachu')return ordersHome(true);
     await client.auth.signOut();login('Rol no autorizado.');
@@ -88,8 +92,9 @@
     const {data,error}=await client.from('app_state').select('data,updated_at').eq('id','main').maybeSingle();
     if(data?.data && window.TOQUIN_LEGACY) window.TOQUIN_LEGACY.setState(data.data);
     window.addEventListener('toquin-state-changed', async event => { try { await client.from('app_state').upsert({id:'main',data:event.detail,updated_by:user.id,updated_at:new Date().toISOString()}); } catch(e) { console.warn('sync failed',e); } });
-    root.innerHTML=header()+'<h1>Operación TOQUÍN</h1>'+box('<p>Horario, turnos, tarifas y nómina compartidos entre dispositivos.</p><button class="btn" id="openOps">Abrir horario y nómina</button><p id="syncInfo" class="hint">'+(error?'Sin conexión de datos: '+h(error.message):'Última actualización: '+h(data?.updated_at||'Aún sin datos'))+'</p>')+(profile.role==='admin'?usersPanel():'');
+    root.innerHTML=header()+'<h1>Operación TOQUÍN</h1>'+box('<p>Horario, turnos, tarifas y nómina compartidos entre dispositivos.</p><button class="btn" id="openOps">Abrir horario y nómina</button> <button class="btn secondary" id="openRecipes">Recetas</button><p id="syncInfo" class="hint">'+(error?'Sin conexión de datos: '+h(error.message):'Última actualización: '+h(data?.updated_at||'Aún sin datos'))+'</p>')+(profile.role==='admin'?usersPanel():'');
     bindHeader();
+    document.getElementById('openRecipes').onclick=()=>window.TOQUIN_RECIPES?.open();
     document.getElementById('openOps').onclick=()=>{if(window.TOQUIN_LEGACY)window.TOQUIN_LEGACY.setState(data?.data||{});location.hash='#operacion';document.getElementById('syncInfo').textContent='Horario y nómina compartidos activos.';};
     if(profile.role==='admin'){
       document.getElementById('createAccount').onclick=async()=>{
