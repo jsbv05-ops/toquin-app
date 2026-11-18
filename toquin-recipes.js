@@ -61,8 +61,8 @@
       data=await request({action:'get'});
       if(selected)selected=(data.recipes||[]).find(r=>r.id===selected.id)||null;
       lastError='';
-      const editing=document.activeElement?.id==='trSearch'||document.activeElement?.hasAttribute('data-qty');
-      if(!editing&&document.querySelector('#root .tr-wrap')){if(root?.dataset.view==='list')renderList();else if(root?.dataset.view==='detail'&&selected)renderDetail();}
+      const editing=['trSearch','mpSearch'].includes(document.activeElement?.id)||document.activeElement?.hasAttribute('data-qty')||document.activeElement?.hasAttribute('data-price');
+      if(!editing&&document.querySelector('#root .tr-wrap')){if(root?.dataset.view==='list')renderList();else if(root?.dataset.view==='detail'&&selected)renderDetail();else if(root?.dataset.view==='mp')renderMP();}
       const stamp=$('recipeSyncStamp');if(stamp)stamp.textContent='Sincronizado '+new Date().toLocaleTimeString('es-CO');
     }catch(e){lastError=e.message;const el=$('recipeError');if(el)el.textContent='No se pudo actualizar: '+e.message}
     finally{busy=false}
@@ -89,6 +89,28 @@
     $('trSearch').oninput=e=>{query=e.target.value;renderList();const x=$('trSearch');x.focus();x.setSelectionRange(query.length,query.length)};
     root.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{category=b.dataset.cat;renderList()});
     root.querySelectorAll('[data-recipe]').forEach(b=>b.onclick=()=>{selected=recs.find(r=>r.id===b.dataset.recipe);renderDetail()});
+  }
+  let mpQuery='';
+  function renderMP(){
+    if(!data)return;
+    (root=$('root')).dataset.view='mp';
+    const ings=(data.ingredients||[]).slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),'es'));
+    const q=mpQuery.toLowerCase(),list=ings.filter(i=>!q||String(i.name||'').toLowerCase().includes(q));
+    shell('<div class="tr-top"><div><div class="tr-muted">TOQUÍN · MATERIA PRIMA</div><h1>MP</h1><div class="tr-muted">Conectado con Juan Beltran · solo puedes cambiar el precio</div></div><button class="tr-btn alt" id="trExit">← Volver a operación</button></div>'+
+      '<input class="tr-input" id="mpSearch" type="search" placeholder="Buscar materia prima…" value="'+esc(mpQuery)+'" style="max-width:100%;width:100%;margin:10px 0">'+
+      '<div class="tr-card"><div class="tr-scroll"><table class="tr-table" style="min-width:560px"><thead><tr><th>Materia prima</th><th>Presentación</th><th>Rend.</th><th>Precio</th><th>Costo/unidad</th></tr></thead><tbody>'+
+      list.map(i=>'<tr><td><b>'+esc(i.name)+'</b></td><td>'+esc(n(i.pack))+' '+esc(i.unit||'')+'</td><td>'+esc(n(i.yield||100))+'%</td><td><input class="tr-input" inputmode="numeric" type="number" min="0" step="any" data-price="'+esc(i.id)+'" value="'+esc(n(i.price))+'" style="width:120px"></td><td>'+money(unitCost(i))+' / '+esc(i.unit||'u')+'</td></tr>').join('')+
+      '</tbody></table></div><p class="tr-muted">'+list.length+' de '+ings.length+' materias primas. Al cambiar un precio se recalculan las recetas aquí y en tu app.</p></div>'+
+      '<p class="tr-muted" id="recipeSyncStamp"></p><p class="tr-error" id="recipeError">'+esc(lastError)+'</p>');
+    $('trExit').onclick=()=>window.TOQUIN_RETURN_STAFF?.();
+    $('mpSearch').oninput=e=>{mpQuery=e.target.value;renderMP();const x=$('mpSearch');x.focus();x.setSelectionRange(mpQuery.length,mpQuery.length)};
+    root.querySelectorAll('[data-price]').forEach(input=>input.addEventListener('change',async()=>{
+      const price=Number(input.value);
+      if(!Number.isFinite(price)||price<0){const m=$('recipeError');if(m)m.textContent='El precio debe ser un número mayor o igual a cero.';return;}
+      input.disabled=true;
+      try{await request({action:'set_price',ing_id:input.dataset.price,price});await pull();lastError='Precio actualizado.';renderMP()}
+      catch(e){lastError=e.message;input.disabled=false;const m=$('recipeError');if(m)m.textContent=e.message}
+    }));
   }
   async function saveQty(recipeId,ingId,value){
     const qty=Number(value);
@@ -156,6 +178,7 @@
   }
   window.TOQUIN_RECIPES={
     init,logout:async()=>{clearInterval(timer);data=null;selected=null;getAccessToken=null;},
-    open:()=>{if(data)renderList();else alert(lastError||'Recetas no disponibles.')}
+    open:()=>{if(data)renderList();else alert(lastError||'Recetas no disponibles.')},
+    openMP:()=>{if(data)renderMP();else alert(lastError||'MP no disponible.')}
   };
 })();
