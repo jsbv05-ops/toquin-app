@@ -24,7 +24,7 @@
   const saveSoon = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => L().save(), 600); };
   const commit = () => { clearTimeout(saveTimer); L().save(); rr(); };
 
-  let view = 'dia', date = today(), per = 'quincena', from = today(), to = today(), fTag = '', fProv = '', sort = 'fecha', txType = 'gasto', editId = null;
+  let view = 'dia', date = today(), per = 'quincena', from = today(), to = today(), fTag = '', fProv = '', sort = 'fecha', txType = 'gasto', editId = null, provView = null;
 
   const COLORS = ['#f47721','#39251c','#387b52','#c0392b','#2e86c1','#8e44ad','#d4ac0d','#16a085','#e67e22','#7f8c8d','#d35400','#1abc9c'];
   const SUGGESTED = [['Carnes','gasto'],['Pollo','gasto'],['Verduras y fruta','gasto'],['Pan','gasto'],['Gaseosas y bebidas','gasto'],['Desechables','gasto'],['Gas','gasto'],['Servicios','gasto'],['Arriendo','gasto'],['Adelantos de nómina','gasto'],['Mantenimiento','gasto'],['Otros gastos','gasto'],['Otros ingresos','ingreso']];
@@ -84,7 +84,7 @@
   }
   function txRow(C, t, showDate) {
     const tag = tagOf(C, t.tag), prov = provOf(C, t.prov);
-    return '<div class="cj-tx"><i style="background:' + (tag?.color || '#bbb') + '"></i><div class="cj-txm"><b>' + esc(tag?.name || (t.type === 'gasto' ? 'Gasto' : 'Ingreso')) + '</b><span>' + [showDate ? fmtD(t.date) : '', prov ? esc(prov.name) : '', t.method ? esc(t.method) : '', t.note ? esc(t.note) : ''].filter(Boolean).join(' · ') + '</span></div><b class="' + (t.type === 'gasto' ? 'cj-neg' : 'cj-pos') + '">' + (t.type === 'gasto' ? '−' : '+') + money(t.amount) + '</b><button class="cj-ico" title="Editar" onclick="CJ.edit(\'' + t.id + '\')">✏️</button><button class="cj-ico" title="Borrar" onclick="CJ.delTx(\'' + t.id + '\')">🗑</button></div>';
+    return '<div class="cj-tx"><i style="background:' + (tag?.color || '#bbb') + '"></i><div class="cj-txm"><b>' + esc(tag?.name || (t.type === 'gasto' ? 'Gasto' : 'Ingreso')) + '</b><span>' + [showDate ? fmtD(t.date) : '', t.inv ? 'Fact. ' + esc(t.inv) : '', prov ? esc(prov.name) : '', t.method ? esc(t.method) : '', t.note ? esc(t.note) : ''].filter(Boolean).join(' · ') + '</span></div><b class="' + (t.type === 'gasto' ? 'cj-neg' : 'cj-pos') + '">' + (t.type === 'gasto' ? '−' : '+') + money(t.amount) + '</b><button class="cj-ico" title="Editar" onclick="CJ.edit(\'' + t.id + '\')">✏️</button><button class="cj-ico" title="Borrar" onclick="CJ.delTx(\'' + t.id + '\')">🗑</button></div>';
   }
   function dueFixed(C) {
     const out = [];
@@ -109,7 +109,7 @@
   }
   function quickForm(C) {
     const tags = C.tags.filter(t => t.type === 'gasto');
-    return '<div class="cj-quick"><input id="qAmt" type="number" inputmode="numeric" placeholder="Valor del gasto"><select id="qTag">' + opt(tags, '', 'Etiqueta') + '</select><select id="qProv">' + opt(C.provs, '', 'Proveedor') + '</select><select id="qMet"><option>Efectivo</option><option>Transferencia</option></select><input id="qNote" placeholder="Nota (opcional)"><button class="btn" onclick="CJ.quick()">+ Agregar gasto</button></div>';
+    return '<div class="cj-quick"><input id="qAmt" type="number" inputmode="numeric" placeholder="Valor del gasto"><select id="qTag">' + opt(tags, '', 'Etiqueta') + '</select><select id="qProv">' + opt(C.provs, '', 'Proveedor') + '</select><select id="qMet"><option>Efectivo</option><option>Transferencia</option></select><input id="qInv" placeholder="N° factura (opcional)"><input id="qNote" placeholder="Nota (opcional)"><button class="btn" onclick="CJ.quick()">+ Agregar gasto</button></div>';
   }
 
   // ---------- Gastos e ingresos ----------
@@ -124,7 +124,7 @@
       '<div class="cj-seg"><button class="' + (type === 'gasto' ? 'on neg' : '') + '" onclick="CJ.type(\'gasto\')">− Gasto</button><button class="' + (type === 'ingreso' ? 'on pos' : '') + '" onclick="CJ.type(\'ingreso\')">+ Ingreso</button></div>' +
       '<div class="grid"><label class="field">Valor<input id="mAmt" type="number" inputmode="numeric" value="' + (e ? e.amount : '') + '"></label><label class="field">Fecha<input id="mDate" type="date" value="' + (e ? e.date : date) + '"></label>' +
       '<label class="field">Etiqueta<select id="mTag">' + opt(tags, e?.tag, 'Sin etiqueta') + '</select></label>' +
-      (type === 'gasto' ? '<label class="field">Proveedor<select id="mProv" onchange="CJ.provPick(this.value)">' + opt(C.provs, e?.prov, 'Sin proveedor') + '</select></label>' : '') +
+      (type === 'gasto' ? '<label class="field">Proveedor<select id="mProv" onchange="CJ.provPick(this.value)">' + opt(C.provs, e?.prov, 'Sin proveedor') + '</select></label><label class="field">N° factura<input id="mInv" value="' + esc(e?.inv || '') + '" placeholder="Opcional"></label>' : '') +
       '<label class="field">Método<select id="mMet">' + ['Efectivo', 'Transferencia'].map(m => '<option' + (e?.method === m ? ' selected' : '') + '>' + m + '</option>').join('') + '</select></label><label class="field">Nota<input id="mNote" value="' + esc(e?.note || '') + '"></label></div>' +
       '<button class="btn" onclick="CJ.saveTx()">' + (e ? 'Guardar cambios' : 'Agregar') + '</button>' + (e ? ' <button class="btn secondary" onclick="CJ.cancel()">Cancelar</button>' : '') +
       (!tags.length ? '<p class="hint">Aún no hay etiquetas de ' + type + '. Créalas en 🏷️ Etiquetas y proveedores.</p>' : '') + '</div>' +
@@ -135,10 +135,10 @@
   }
 
   // ---------- Reportes ----------
-  function bars(rows, total) {
+  function bars(rows, total, click) {
     if (!rows.length) return '<p class="hint">Sin datos en este periodo.</p>';
     const max = Math.max(...rows.map(r => r.v), 1);
-    return rows.map(r => '<div class="cj-bar"><div class="cj-bl"><span><i style="background:' + r.c + '"></i>' + esc(r.n) + '</span><b>' + money(r.v) + ' <em>' + pct(r.v, total) + '</em></b></div><div class="cj-bt"><div style="width:' + (r.v / max * 100) + '%;background:' + r.c + '"></div></div></div>').join('');
+    return rows.map(r => '<div class="cj-bar' + (click ? ' cj-click' : '') + '"' + (click ? ' role="button" tabindex="0" onclick="CJ.prov(\'' + esc(r.k) + '\')"' : '') + '><div class="cj-bl"><span><i style="background:' + r.c + '"></i>' + esc(r.n) + '</span><b>' + money(r.v) + ' <em>' + pct(r.v, total) + '</em></b></div><div class="cj-bt"><div style="width:' + (r.v / max * 100) + '%;background:' + r.c + '"></div></div>' + (click ? '<span class="cj-go">Ver facturas ›</span>' : '') + '</div>').join('');
   }
   function chart(C, a, b) {
     const days = []; for (let d = a; d <= b && days.length < 62; d = addDays(d, 1)) days.push(d);
@@ -151,17 +151,33 @@
         ((days.length <= 16 || i % 3 === 0) ? '<text x="' + (xv + bw / 2) + '" y="' + (h + 16) + '" font-size="10" text-anchor="middle" fill="#907b6d">' + new Date(x.d + 'T12:00').getDate() + '</text>' : '');
     }).join('') + '</svg></div><p class="hint"><span class="cj-dot" style="background:#f47721"></span> Venta + domis &nbsp; <span class="cj-dot" style="background:#39251c"></span> Gastos</p>';
   }
+  function vProv(C) {
+    const [a, b] = range(per), id = provView, p = provOf(C, id);
+    const all = C.tx.filter(x => x.type === 'gasto' && x.date >= a && x.date <= b);
+    const list = all.filter(x => (x.prov || '') === id).sort((x, y) => y.date.localeCompare(x.date) || ((y.ts || 0) - (x.ts || 0)));
+    const total = list.reduce((s, x) => s + x.amount, 0), allG = all.reduce((s, x) => s + x.amount, 0);
+    const ef = list.filter(x => x.method === 'Efectivo').reduce((s, x) => s + x.amount, 0);
+    const m = {}; list.forEach(x => { m[x.tag || ''] = (m[x.tag || ''] || 0) + x.amount; });
+    const byTag = Object.entries(m).map(([k, v]) => { const o = tagOf(C, k); return {k, n: o?.name || 'Sin etiqueta', c: o?.color || '#b9a99b', v}; }).sort((x, y) => y.v - x.v);
+    return '<button class="btn secondary" onclick="CJ.prov(null)">← Volver a reportes</button>' +
+      '<h2 class="cj-h">🚚 ' + esc(p?.name || 'Sin proveedor') + '</h2>' + (p?.phone ? '<p class="hint">📞 <a href="tel:' + esc(p.phone) + '">' + esc(p.phone) + '</a></p>' : '') +
+      periodBar() +
+      '<div class="cj-k">' + card('🧾 Facturas', String(list.length), 'en este periodo') + card('💸 Total', money(total), pct(total, allG) + ' de todos los gastos', 'neg') + card('📊 Promedio', money(list.length ? total / list.length : 0), 'por factura') + card('💵 Efectivo', money(ef), '') + card('📲 Transferencia', money(total - ef), '') + '</div>' +
+      (byTag.length > 1 ? '<div class="panel"><h3>Por etiqueta</h3>' + bars(byTag, total) + '</div>' : '') +
+      '<div class="panel"><h3>Facturas</h3>' + (list.length ? list.map(t => txRow(C, t, true)).join('') : '<p class="hint">No hay facturas de este proveedor en el periodo.</p>') + '</div>';
+  }
   function vRep(C) {
+    if (provView !== null) return vProv(C);
     const [a, b] = range(per), t = totals(C, a, b);
     const inR = C.tx.filter(x => x.date >= a && x.date <= b);
-    const group = (type, key, lookup) => { const m = {}; inR.filter(x => x.type === type).forEach(x => { const k = x[key] || ''; m[k] = (m[k] || 0) + x.amount; }); return Object.entries(m).map(([k, v]) => { const o = lookup(k); return {n: o?.name || (key === 'tag' ? 'Sin etiqueta' : 'Sin proveedor'), c: o?.color || '#b9a99b', v}; }).sort((x, y) => y.v - x.v); };
-    const byTag = group('gasto', 'tag', k => tagOf(C, k)), byProv = group('gasto', 'prov', k => { const p = provOf(C, k); return p ? {name: p.name, color: '#39251c'} : null; }).slice(0, 10), inTag = group('ingreso', 'tag', k => tagOf(C, k));
+    const group = (type, key, lookup) => { const m = {}; inR.filter(x => x.type === type).forEach(x => { const k = x[key] || ''; m[k] = (m[k] || 0) + x.amount; }); return Object.entries(m).map(([k, v]) => { const o = lookup(k); return {k, n: o?.name || (key === 'tag' ? 'Sin etiqueta' : 'Sin proveedor'), c: o?.color || '#b9a99b', v}; }).sort((x, y) => y.v - x.v); };
+    const byTag = group('gasto', 'tag', k => tagOf(C, k)), byProv = group('gasto', 'prov', k => { const p = provOf(C, k); return p ? {name: p.name, color: '#39251c'} : null; }), inTag = group('ingreso', 'tag', k => tagOf(C, k));
     return periodBar() +
       '<div class="cj-k">' + card('🧾 Ventas', money(t.venta), t.dias + ' días anotados') + card('🍹 Jugos', money(t.jugos), pct(t.jugos, t.venta) + ' de la venta') + card('🛵 Domis', money(t.domis), t.ndomis + ' domicilios') + card('💵 Recibido efectivo', money(t.recibido), pct(t.recibido, t.venta)) + card('➕ Otros ingresos', money(t.ingresos), '') + card('💸 Gastos', money(t.gastos), pct(t.gastos, t.venta + t.domis + t.ingresos) + ' de lo que entró', 'neg') + '</div>' +
       '<div class="cj-big ' + (t.balance < 0 ? 'neg' : '') + '"><small>BALANCE DEL PERIODO</small><b>' + money(t.balance) + '</b><span>Venta ' + money(t.venta) + ' + domis ' + money(t.domis) + (t.ingresos ? ' + otros ' + money(t.ingresos) : '') + ' − gastos ' + money(t.gastos) + '</span></div>' +
       '<div class="panel"><h3>Día a día</h3>' + chart(C, a, b) + '</div>' +
       '<div class="panel"><h3>Gastos por etiqueta</h3>' + bars(byTag, t.gastos) + '</div>' +
-      '<div class="panel"><h3>Gastos por proveedor</h3>' + bars(byProv, t.gastos) + '</div>' +
+      '<div class="panel"><h3>Gastos por proveedor</h3><p class="hint">Toca un proveedor para ver sus facturas.</p>' + bars(byProv, t.gastos, true) + '</div>' +
       (inTag.length ? '<div class="panel"><h3>Otros ingresos por etiqueta</h3>' + bars(inTag, t.ingresos) + '</div>' : '');
   }
 
@@ -185,7 +201,7 @@
     '.cj-row{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:6px 0}.cj-row input,.cj-row select{flex:1;min-width:0}.cj-edit input[type=color],.cj-add input[type=color]{flex:none;width:42px;height:38px;padding:2px}.cj-badge{font-size:11px;font-weight:900;padding:3px 8px;border-radius:99px;background:#e6f2ea;color:#387b52}.cj-badge.neg{background:#fbe3df;color:#a12a1c}' +
     '.cj-seg{display:flex;gap:6px;margin-bottom:10px}.cj-seg button{flex:1;padding:11px;border-radius:12px;border:1px solid var(--l);background:#fff;font-weight:900}.cj-seg .on.neg{background:#a12a1c;color:#fff}.cj-seg .on.pos{background:#387b52;color:#fff}' +
     '.cj-scroll{overflow:auto}.cj-table{width:100%;border-collapse:collapse;font-size:13px;min-width:480px}.cj-table td,.cj-table th{padding:8px 6px;border-bottom:1px solid var(--l);text-align:right}.cj-table td:first-child,.cj-table th:first-child{text-align:left}.cj-table tr{cursor:pointer}.cj-table tr.on{background:#fff0dc}' +
-    '.cj-bar{margin:8px 0}.cj-bl{display:flex;justify-content:space-between;gap:8px;font-size:14px}.cj-bl i,.cj-dot{display:inline-block;width:10px;height:10px;border-radius:99px;margin-right:6px}.cj-bl em{color:var(--m);font-style:normal;font-weight:600;font-size:12px}.cj-bt{background:#f3e6d6;border-radius:99px;height:10px;margin-top:4px;overflow:hidden}.cj-bt div{height:100%;border-radius:99px}.cj-due{border-color:#f47721;background:#fff6ea}' +
+    '.cj-bar{margin:8px 0}.cj-bl{display:flex;justify-content:space-between;gap:8px;font-size:14px}.cj-bl i,.cj-dot{display:inline-block;width:10px;height:10px;border-radius:99px;margin-right:6px}.cj-bl em{color:var(--m);font-style:normal;font-weight:600;font-size:12px}.cj-bt{background:#f3e6d6;border-radius:99px;height:10px;margin-top:4px;overflow:hidden}.cj-bt div{height:100%;border-radius:99px}.cj-due{border-color:#f47721;background:#fff6ea}.cj-click{cursor:pointer;padding:8px;margin:4px -8px;border-radius:12px}.cj-click:hover,.cj-click:active{background:#fff0dc}.cj-go{display:block;text-align:right;font-size:12px;font-weight:800;color:#f47721;margin-top:3px}' +
     '.cj-sum{border:2px dashed #f47721;background:#fff6ea}@media(max-width:600px){.cj-quick{grid-template-columns:1fr}.cj-field input{font-size:20px}}';
 
   function render() {
@@ -206,7 +222,8 @@
 
   const tx = (C, o) => { C.tx.push({id: uid(), ts: Date.now(), ...o}); };
   window.CJ = {
-    view: v => { view = v; editId = null; rr(); },
+    view: v => { view = v; editId = null; provView = null; rr(); },
+    prov: id => { provView = id; view = 'rep'; rr(); window.scrollTo(0, 0); },
     date: d => { if (d) { date = d; rr(); } },
     shift: n => { date = addDays(date, n); rr(); },
     per: p => { per = p; rr(); }, from: v => { from = v; rr(); }, to: v => { to = v; rr(); },
@@ -224,7 +241,7 @@
       const C = st(), amount = num(document.getElementById('qAmt').value);
       if (!amount) return alert('Escribe el valor del gasto.');
       const prov = document.getElementById('qProv').value;
-      tx(C, {date, type: 'gasto', amount, tag: document.getElementById('qTag').value || provOf(C, prov)?.tag || '', prov, method: document.getElementById('qMet').value, note: document.getElementById('qNote').value.trim()});
+      tx(C, {date, type: 'gasto', amount, tag: document.getElementById('qTag').value || provOf(C, prov)?.tag || '', prov, method: document.getElementById('qMet').value, inv: document.getElementById('qInv').value.trim(), note: document.getElementById('qNote').value.trim()});
       commit();
     },
     provPick: id => { const p = provOf(st(), id), sel = document.getElementById('mTag'); if (p?.tag && sel && !sel.value) sel.value = p.tag; },
@@ -232,7 +249,7 @@
       const C = st(), amount = num(document.getElementById('mAmt').value);
       if (!amount) return alert('Escribe el valor.');
       const e = editId ? C.tx.find(t => t.id === editId) : null, type = e ? e.type : txType;
-      const o = {date: document.getElementById('mDate').value || date, type, amount, tag: document.getElementById('mTag').value, prov: type === 'gasto' ? (document.getElementById('mProv')?.value || '') : '', method: document.getElementById('mMet').value, note: document.getElementById('mNote').value.trim()};
+      const o = {date: document.getElementById('mDate').value || date, type, amount, tag: document.getElementById('mTag').value, prov: type === 'gasto' ? (document.getElementById('mProv')?.value || '') : '', method: document.getElementById('mMet').value, inv: type === 'gasto' ? (document.getElementById('mInv')?.value.trim() || '') : '', note: document.getElementById('mNote').value.trim()};
       if (e) Object.assign(e, o); else tx(C, o);
       editId = null; commit();
     },
