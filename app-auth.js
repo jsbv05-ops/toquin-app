@@ -282,6 +282,7 @@
   const P1=80,P2=160,PACK=480;
   const pnum=v=>{const x=Number(String(v??'').replace(',','.'));return Number.isFinite(x)?x:0};
   const gr=v=>(Math.round(v*10)/10).toLocaleString('es-CO')+' g';
+  const kgs=v=>(v/1000).toLocaleString('es-CO',{maximumFractionDigits:3})+' kg';
   const ppct=v=>(Number.isFinite(v)?(v*100).toFixed(1).replace('.',','):'0')+'%';
   const nf=v=>(Math.round(v*10)/10).toLocaleString('es-CO');
   const canProduce=()=>['admin','produccion'].includes(profile?.role);
@@ -327,7 +328,7 @@
     container.dataset.view='form';
     const files={};
     container.innerHTML='<h1>Producción</h1><p class="muted">Anota todo en gramos y adjunta la foto de evidencia. Llena solo lo que produjiste.</p>'+
-      PROD_SECTIONS.map(s=>box('<h2>'+s.icon+' '+s.title+'</h2>'+photoField(s.k,'llego','Lo que llegó (g)')+
+      PROD_SECTIONS.map(s=>box('<h2>'+s.icon+' '+s.title+'</h2>'+photoField(s.k,'llego','Lo que llegó (kg)').replace('placeholder="gramos"','placeholder="kilos, ej: 10,5"')+
         (s.type==='meat'?photoField(s.k,'merma','Merma al limpiar (g)')+(s.only1?countField(s.k,'x1','Porciones x1 (80 g)'):'<div class="grid">'+countField(s.k,'x1','Porciones x1 (80 g)')+countField(s.k,'x2','Porciones x2 (160 g)')+'</div>'):countField(s.k,'packs','Paquetes x3 (480 g)')))).join('')+
       '<label class="field">Nota (opcional)<textarea id="prodNote"></textarea></label><button class="btn" id="prodSend" style="width:100%;padding:14px">Enviar reporte</button><p class="hint" id="prodMsg"></p>';
     container.querySelectorAll('[data-f]').forEach(inp=>inp.onchange=()=>{
@@ -342,7 +343,7 @@
       const data={},missing=[];
       PROD_SECTIONS.forEach(s=>{
         const fields=s.type==='meat'?(s.only1?['llego','merma','x1']:['llego','merma','x1','x2']):['llego','packs'];
-        const d={};fields.forEach(f=>{const v=val(s.k+'.'+f);if(v!=='')d[f]=pnum(v);});
+        const d={};fields.forEach(f=>{const v=val(s.k+'.'+f);if(v!=='')d[f]=f==='llego'?Math.round(pnum(v)*1000):pnum(v);});
         if(!Object.keys(d).length)return;
         if(!(d.llego>0))missing.push(s.title+': cuánto llegó');
         if(!(files[s.k+'.llego']||[]).length)missing.push(s.title+': foto de lo que llegó');
@@ -383,11 +384,11 @@
     const c=prodCalc(s,d),ph=f=>'<div class="thumbs" data-ph="'+r.id+'|'+s.k+'.'+f+'"></div>';
     let h='<div class="prod-sec"><h3>'+s.icon+' '+s.title+'</h3>';
     if(s.type==='meat'){
-      h+=line('Llegó',gr(c.rec))+ph('llego')+line('Merma al limpiar',gr(c.merma)+' · '+ppct(c.rec?c.merma/c.rec:0))+ph('merma')+line('Carne limpia (llegó − merma)',gr(c.clean),'total')+
+      h+=line('Llegó',kgs(c.rec))+ph('llego')+line('Merma al limpiar',gr(c.merma)+' · '+ppct(c.rec?c.merma/c.rec:0))+ph('merma')+line('Carne limpia (llegó − merma)',gr(c.clean),'total')+
         line('Porciones x1',nf(c.x1)+' × 80 g = '+gr(c.x1*P1))+(s.only1?'':line('Porciones x2',nf(c.x2)+' × 160 g = '+gr(c.x2*P2)))+line('Total porcionado',gr(c.used),'total');
       h+='<div class="prod-res '+(c.ok?'ok':'bad')+'">'+(c.ok?'✅ Cuadra: porcionó '+gr(c.used)+' de '+gr(c.clean)+' limpios'+(Math.abs(c.diff)>=1?' (diferencia '+(c.diff>0?'+':'−')+gr(Math.abs(c.diff))+')':''):(c.diff<0?'⚠️ No cuadra: faltan '+gr(-c.diff)+' ('+ppct(c.clean?-c.diff/c.clean:0)+'). Quedaron '+gr(c.clean)+' limpios y solo se porcionaron '+gr(c.used)+'.':'⚠️ No cuadra: sobran '+gr(c.diff)+'. Se porcionó más de lo que quedó limpio ('+gr(c.clean)+').'))+'</div>';
     }else{
-      h+=line('Llegó',gr(c.rec))+ph('llego')+line('Deberían salir',nf(c.expected)+' paquetes x3')+line('Paquetes x3 que salieron',nf(c.packs)+' × 480 g = '+gr(c.used),'total');
+      h+=line('Llegó',kgs(c.rec))+ph('llego')+line('Deberían salir',nf(c.expected)+' paquetes x3')+line('Paquetes x3 que salieron',nf(c.packs)+' × 480 g = '+gr(c.used),'total');
       h+='<div class="prod-res '+(c.ok?'ok':'bad')+'">'+(c.ok?'✅ Cuadra: '+nf(c.packs)+' paquetes = '+gr(c.used)+' de '+gr(c.rec)+' que llegaron':(c.diff<0?'⚠️ No cuadra: faltan '+gr(-c.diff)+' (≈ '+nf(-c.diff/PACK)+' paquetes).':'⚠️ No cuadra: sobran '+gr(c.diff)+'. Salieron más paquetes de lo que alcanza con lo que llegó.'))+'</div>';
     }
     return h+'</div>';
