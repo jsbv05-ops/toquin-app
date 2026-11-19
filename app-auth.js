@@ -14,7 +14,7 @@
   function login(message=''){
     root.innerHTML=box('<h1>Iniciar sesión</h1><p class="muted">Acceso del equipo TOQUÍN</p><label class="field">Usuario<input id="loginName" autocomplete="username"></label><label class="field">Contraseña<input id="loginPassword" type="password" autocomplete="current-password"></label><label class="item"><input id="rememberLogin" type="checkbox" checked><span>Recordar en este celular</span></label><button class="btn" id="loginButton">Entrar</button><p id="loginMessage" class="hint">'+h(message)+'</p>');
     document.getElementById('loginButton').onclick=async()=>{
-      const name=document.getElementById('loginName').value.trim().toLowerCase(),password=document.getElementById('loginPassword').value;
+      const name=document.getElementById('loginName').value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,''),password=document.getElementById('loginPassword').value;
       if(!/^[a-z0-9._-]{3,32}$/.test(name)||!password)return login('Usuario o contraseña incompletos.');
       try{
         if(!document.getElementById('rememberLogin').checked){
