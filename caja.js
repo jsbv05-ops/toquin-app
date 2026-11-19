@@ -8,6 +8,7 @@
     const C = S.caja;
     C.days ||= {}; C.tx ||= []; C.tags ||= []; C.provs ||= []; C.fixed ||= [];
     if (!C.domiPrice) C.domiPrice = 1000;
+    if (!Array.isArray(C.accounts) || !C.accounts.length) C.accounts = ['Nequi', 'Crediservir', 'Daviplata'];
     return C;
   };
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -24,7 +25,7 @@
   const saveSoon = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => L().save(), 600); };
   const commit = () => { clearTimeout(saveTimer); L().save(); rr(); };
 
-  let view = 'dia', date = today(), per = 'quincena', from = today(), to = today(), fTag = '', fProv = '', sort = 'fecha', txType = 'gasto', editId = null, provView = null;
+  let view = 'dia', date = today(), per = 'quincena', from = today(), to = today(), fTag = '', fProv = '', sort = 'fecha', txType = 'gasto', editId = null, provView = null, oneDay = today();
 
   const COLORS = ['#f47721','#39251c','#387b52','#c0392b','#2e86c1','#8e44ad','#d4ac0d','#16a085','#e67e22','#7f8c8d','#d35400','#1abc9c'];
   const SUGGESTED = [['Carnes','gasto'],['Pollo','gasto'],['Verduras y fruta','gasto'],['Pan','gasto'],['Gaseosas y bebidas','gasto'],['Desechables','gasto'],['Gas','gasto'],['Servicios','gasto'],['Arriendo','gasto'],['Adelantos de nómina','gasto'],['Mantenimiento','gasto'],['Otros gastos','gasto'],['Otros ingresos','ingreso']];
@@ -32,6 +33,7 @@
   function range(p) {
     const t = today(), d = new Date(t + 'T12:00'), y = d.getFullYear(), m = d.getMonth();
     const last = (yy, mm) => iso(new Date(yy, mm + 1, 0, 12));
+    if (p === 'dia') return [oneDay, oneDay];
     if (p === 'hoy') return [t, t];
     if (p === 'semana') { const wd = (d.getDay() + 6) % 7; const a = addDays(t, -wd); return [a, addDays(a, 6)]; }
     if (p === 'quincena') return d.getDate() <= 15 ? [iso(new Date(y, m, 1, 12)), iso(new Date(y, m, 15, 12))] : [iso(new Date(y, m, 16, 12)), last(y, m)];
@@ -39,21 +41,24 @@
     if (p === 'mesant') return [iso(new Date(y, m - 1, 1, 12)), last(y, m - 1)];
     return from <= to ? [from, to] : [to, from];
   }
-  const PERIODS = [['hoy','Hoy'],['semana','Semana'],['quincena','Quincena'],['mes','Mes'],['mesant','Mes anterior'],['custom','Fechas']];
+  const PERIODS = [['dia','Un día'],['hoy','Hoy'],['semana','Semana'],['quincena','Quincena'],['mes','Mes'],['mesant','Mes anterior'],['custom','Fechas']];
   function periodBar() {
     const [a, b] = range(per);
     return '<div class="cj-chips">' + PERIODS.map(([k, l]) => '<button class="cj-chip' + (per === k ? ' on' : '') + '" onclick="CJ.per(\'' + k + '\')">' + l + '</button>').join('') + '</div>' +
+      (per === 'dia' ? '<div class="cj-date"><button class="btn secondary" onclick="CJ.oneShift(-1)">‹</button><input type="date" value="' + oneDay + '" onchange="CJ.oneDay(this.value)"><button class="btn secondary" onclick="CJ.oneShift(1)">›</button></div>' : '') +
       (per === 'custom' ? '<div class="cj-row"><input type="date" value="' + from + '" onchange="CJ.from(this.value)"><input type="date" value="' + to + '" onchange="CJ.to(this.value)"></div>' : '') +
       '<p class="hint">' + fmtD(a) + ' – ' + fmtD(b) + '</p>';
   }
 
   const day = (C, d) => C.days[d] || {};
+  const trSum = x => Object.values(x.tr || {}).reduce((a, v) => a + num(v), 0);
+  const isNomina = (C, t) => /n[oó]mina/i.test(tagOf(C, t.tag)?.name || '');
   const domisVal = (C, x) => num(x.domis) * (x.dp || C.domiPrice);
   const tagOf = (C, id) => C.tags.find(t => t.id === id);
   const provOf = (C, id) => C.provs.find(p => p.id === id);
   function totals(C, a, b) {
-    const t = {venta:0, jugos:0, recibido:0, domis:0, ndomis:0, gastos:0, ingresos:0, dias:0};
-    Object.entries(C.days).forEach(([d, x]) => { if (d < a || d > b) return; t.venta += num(x.venta); t.jugos += num(x.jugos); t.recibido += num(x.recibido); t.ndomis += num(x.domis); t.domis += domisVal(C, x); if (num(x.venta)) t.dias++; });
+    const t = {venta:0, jugos:0, recibido:0, domis:0, ndomis:0, gastos:0, ingresos:0, dias:0, tr:0, acc:{}};
+    Object.entries(C.days).forEach(([d, x]) => { if (d < a || d > b) return; t.tr += trSum(x); Object.entries(x.tr || {}).forEach(([k, v]) => { t.acc[k] = (t.acc[k] || 0) + num(v); }); t.venta += num(x.venta); t.jugos += num(x.jugos); t.recibido += num(x.recibido); t.ndomis += num(x.domis); t.domis += domisVal(C, x); if (num(x.venta)) t.dias++; });
     C.tx.forEach(x => { if (x.date < a || x.date > b) return; if (x.type === 'gasto') t.gastos += x.amount; else t.ingresos += x.amount; });
     t.balance = t.venta + t.domis + t.ingresos - t.gastos;
     return t;
@@ -62,7 +67,7 @@
 
   // ---------- Cuaderno del día ----------
   function calcDay(C) {
-    const x = day(C, date), venta = num(x.venta), jugos = num(x.jugos), rec = num(x.recibido), dv = domisVal(C, x);
+    const x = day(C, date), venta = num(x.venta), jugos = num(x.jugos), rec = num(x.recibido), dv = domisVal(C, x), tr = trSum(x);
     const g = C.tx.filter(t => t.date === date && t.type === 'gasto').reduce((a, t) => a + t.amount, 0);
     const ing = C.tx.filter(t => t.date === date && t.type === 'ingreso').reduce((a, t) => a + t.amount, 0);
     const bal = venta + dv + ing - g;
@@ -72,11 +77,12 @@
       card('🍔 Venta sin jugos', money(venta - jugos), '') +
       card('🛵 Domis', money(dv), num(x.domis) + ' × ' + money(x.dp || C.domiPrice)) +
       card('💵 Recibido efectivo', money(rec), pct(rec, venta) + ' de la venta') +
-      card('📲 No efectivo', money(Math.max(venta - rec, 0)), 'Venta − recibido') +
+      (tr ? card('📲 Transferencias', money(tr), pct(tr, venta) + ' de la venta') + cuadreCard(rec + tr, venta + dv) : card('📲 No efectivo', money(Math.max(venta - rec, 0)), 'Venta − recibido')) +
       card('💸 Gastos del día', money(g), '', 'neg') +
       (ing ? card('➕ Otros ingresos', money(ing), '') : '') +
       '</div><div class="cj-big ' + (bal < 0 ? 'neg' : '') + '"><small>BALANCE DEL DÍA</small><b>' + money(bal) + '</b><span>Venta + domis' + (ing ? ' + otros ingresos' : '') + ' − gastos</span></div>';
   }
+  const cuadreCard = (cobrado, debe) => { const d = cobrado - debe; return card(Math.abs(d) < 1 ? '✅ Caja cuadra' : '⚠️ Caja no cuadra', Math.abs(d) < 1 ? money(cobrado) : (d < 0 ? 'Faltan ' : 'Sobran ') + money(Math.abs(d)), 'Efectivo + transferencias vs venta + domis', Math.abs(d) < 1 ? 'ok' : 'neg'); };
   const card = (l, v, s, cls) => '<div class="cj-card' + (cls ? ' ' + cls : '') + '"><small>' + l + '</small><b>' + v + '</b>' + (s ? '<span>' + s + '</span>' : '') + '</div>';
   function bookField(C, k, label, hint) {
     const v = day(C, date)[k];
@@ -101,6 +107,7 @@
     return '<div class="cj-date"><button class="btn secondary" onclick="CJ.shift(-1)">‹</button><input type="date" value="' + date + '" onchange="CJ.date(this.value)"><button class="btn secondary" onclick="CJ.shift(1)">›</button>' + (date !== today() ? '<button class="btn secondary" onclick="CJ.date(\'' + today() + '\')">Hoy</button>' : '') + '</div>' +
       '<h2 class="cj-h">📒 Cuaderno · ' + fmtD(date) + '</h2>' +
       '<div class="cj-book">' + bookField(C, 'recibido', '💵 Recibido', 'Efectivo') + bookField(C, 'jugos', '🍹 Jugos', 'Ya va dentro de la venta') + bookField(C, 'venta', '🧾 Venta', 'Venta total del día') + bookField(C, 'domis', '🛵 Domis', 'Cantidad · ' + money(C.domiPrice) + ' c/u') + '</div>' +
+      '<div class="panel cj-trp"><h3>📲 Transferencias del día</h3><div class="cj-trs">' + C.accounts.map(n => '<label class="cj-tri"><span>' + esc(n) + '</span><input type="number" inputmode="numeric" min="0" placeholder="0" value="' + (day(C, date).tr?.[n] ?? '') + '" oninput="CJ.setTr(\'' + esc(n).replace(/'/g, '') + '\',this.value)"></label>').join('') + '</div><p class="hint">Agrega o quita cuentas en 🏷️ Etiquetas y proveedores.</p></div>' +
       '<div id="cjCalc">' + calcDay(C) + '</div>' +
       (due.length ? '<div class="panel cj-due"><h3>⏰ Pagos fijos próximos</h3>' + due.map(({f, d}) => '<div class="cj-row"><span><b>' + esc(f.name) + '</b> · ' + fmtD(d) + '</span><span><b>' + money(f.amount) + '</b> <button class="btn" onclick="CJ.payFixed(\'' + f.id + '\',\'' + d + '\')">Registrar</button></span></div>').join('') + '</div>' : '') +
       '<div class="panel"><h3>💸 Gastos e ingresos del día</h3>' + quickForm(C) + (gToday.length ? gToday.map(t => txRow(C, t)).join('') : '<p class="hint">Sin movimientos este día.</p>') + '</div>' +
@@ -166,6 +173,32 @@
       (byTag.length > 1 ? '<div class="panel"><h3>Por etiqueta</h3>' + bars(byTag, total) + '</div>' : '') +
       '<div class="panel"><h3>Facturas</h3>' + (list.length ? list.map(t => txRow(C, t, true)).join('') : '<p class="hint">No hay facturas de este proveedor en el periodo.</p>') + '</div>';
   }
+  function cierre(C, a, b, t) {
+    const inR = C.tx.filter(x => x.date >= a && x.date <= b), gs = inR.filter(x => x.type === 'gasto');
+    const nomG = gs.filter(x => isNomina(C, x)).reduce((s, x) => s + x.amount, 0);
+    const gastos = gs.filter(x => !isNomina(C, x)), gTot = gastos.reduce((s, x) => s + x.amount, 0);
+    const gEf = gastos.filter(x => x.method === 'Efectivo').reduce((s, x) => s + x.amount, 0);
+    const iEf = inR.filter(x => x.type === 'ingreso' && x.method === 'Efectivo').reduce((s, x) => s + x.amount, 0);
+    const cobrado = t.recibido + t.tr, debe = t.venta + t.domis, dif = cobrado - debe;
+    const entradas = t.venta + t.domis + t.ingresos, bruta = entradas - gTot;
+    const nomina = typeof window.TOQUIN_PAYRANGE === 'function' ? window.TOQUIN_PAYRANGE(a, b) : 0, neta = bruta - nomina;
+    const pc = v => entradas ? ' <em>' + pct(v, entradas) + '</em>' : '';
+    const L = (l, v, cls, extra) => '<div class="cj-cl' + (cls ? ' ' + cls : '') + '"><span>' + l + '</span><b>' + money(v) + (extra || '') + '</b></div>';
+    const accs = [...new Set([...C.accounts, ...Object.keys(t.acc)])].filter(n => t.acc[n]);
+    const SPLIT = [['Sueldo Toquijefes', 40], ['Abono a préstamo', 30], ['Colchón', 20], ['Reinversión', 10]];
+    return '<div class="panel cj-cierre"><h2>🧮 Cierre ' + (a === b ? 'del día' : 'del periodo') + '</h2>' +
+      '<h3>💰 Cómo entró la plata</h3>' + L('💵 Efectivo', t.recibido) + accs.map(n => L('↳ 📲 ' + esc(n), t.acc[n], 'sub')).join('') + L('📲 Total transferencias', t.tr) + L('Total cobrado', cobrado, 'tot') +
+      L('🧾 Venta anotada (con jugos)', t.venta) + L('🛵 Domis (' + t.ndomis + ')', t.domis) +
+      (t.venta || cobrado ? '<div class="cj-chk ' + (Math.abs(dif) < 1 ? 'ok' : 'bad') + '">' + (Math.abs(dif) < 1 ? '✅ La caja cuadra: lo cobrado es igual a venta + domis' : '⚠️ La caja no cuadra: ' + (dif < 0 ? 'faltan ' : 'sobran ') + money(Math.abs(dif)) + ' (cobrado ' + money(cobrado) + ' vs venta + domis ' + money(debe) + ')') + '</div>' : '') +
+      '<h3>💸 Lo que salió</h3>' + L('Gastos en efectivo', gEf) + L('Gastos por transferencia', gTot - gEf) + L('Total gastos', gTot, 'tot neg') + (nomG ? '<p class="hint">Adelantos de nómina registrados: ' + money(nomG) + ' (no se restan aquí porque ya van en la nómina).</p>' : '') +
+      '<div class="cj-chk info">💵 Efectivo que debe haber en caja: <b>' + money(t.recibido + iEf - gEf) + '</b><br><small>Efectivo recibido' + (iEf ? ' + otros ingresos en efectivo' : '') + ' − gastos pagados en efectivo</small></div>' +
+      '<h3>📈 Resultado</h3>' + L('Total entradas', entradas, '', pc(entradas)) + L('− Gastos', -gTot, '', pc(gTot)) +
+      '<div class="cj-big ' + (bruta < 0 ? 'neg' : '') + '" style="background:#f47721"><small>GANANCIA BRUTA</small><b>' + money(bruta) + '</b><span>' + pct(bruta, entradas) + ' de las entradas</span></div>' +
+      L('− Nómina del periodo (según horario)', -nomina, '', pc(nomina)) +
+      '<div class="cj-big ' + (neta < 0 ? 'neg' : '') + '"><small>GANANCIA NETA</small><b>' + money(neta) + '</b><span>' + pct(neta, entradas) + ' de las entradas</span></div>' +
+      '<h3>Reparto de la ganancia neta</h3>' + SPLIT.map(([k, f]) => L(k + ' · ' + f + '%', neta > 0 ? Math.round(neta * f / 100) : 0)).join('') + (neta <= 0 ? '<p class="hint">No hay ganancia neta para repartir en este periodo.</p>' : '') +
+      '</div>';
+  }
   function vRep(C) {
     if (provView !== null) return vProv(C);
     const [a, b] = range(per), t = totals(C, a, b);
@@ -174,7 +207,7 @@
     const byTag = group('gasto', 'tag', k => tagOf(C, k)), byProv = group('gasto', 'prov', k => { const p = provOf(C, k); return p ? {name: p.name, color: '#39251c'} : null; }), inTag = group('ingreso', 'tag', k => tagOf(C, k));
     return periodBar() +
       '<div class="cj-k">' + card('🧾 Ventas', money(t.venta), t.dias + ' días anotados') + card('🍹 Jugos', money(t.jugos), pct(t.jugos, t.venta) + ' de la venta') + card('🛵 Domis', money(t.domis), t.ndomis + ' domicilios') + card('💵 Recibido efectivo', money(t.recibido), pct(t.recibido, t.venta)) + card('➕ Otros ingresos', money(t.ingresos), '') + card('💸 Gastos', money(t.gastos), pct(t.gastos, t.venta + t.domis + t.ingresos) + ' de lo que entró', 'neg') + '</div>' +
-      '<div class="cj-big ' + (t.balance < 0 ? 'neg' : '') + '"><small>BALANCE DEL PERIODO</small><b>' + money(t.balance) + '</b><span>Venta ' + money(t.venta) + ' + domis ' + money(t.domis) + (t.ingresos ? ' + otros ' + money(t.ingresos) : '') + ' − gastos ' + money(t.gastos) + '</span></div>' +
+      cierre(C, a, b, t) +
       '<div class="panel"><h3>Día a día</h3>' + chart(C, a, b) + '</div>' +
       '<div class="panel"><h3>Gastos por etiqueta</h3>' + bars(byTag, t.gastos) + '</div>' +
       '<div class="panel"><h3>Gastos por proveedor</h3><p class="hint">Toca un proveedor para ver sus facturas.</p>' + bars(byProv, t.gastos, true) + '</div>' +
@@ -184,7 +217,8 @@
   // ---------- Etiquetas, proveedores y pagos fijos ----------
   function vConf(C) {
     const tagRow = t => '<div class="cj-row cj-edit"><input type="color" value="' + t.color + '" onchange="CJ.tagSet(\'' + t.id + '\',\'color\',this.value)"><input value="' + esc(t.name) + '" onchange="CJ.tagSet(\'' + t.id + '\',\'name\',this.value)"><span class="cj-badge ' + (t.type === 'gasto' ? 'neg' : 'pos') + '">' + t.type + '</span><button class="cj-ico" onclick="CJ.delTag(\'' + t.id + '\')">🗑</button></div>';
-    return '<div class="panel"><h3>🏷️ Etiquetas</h3>' + (C.tags.length ? C.tags.map(tagRow).join('') : '<p class="hint">Aún no hay etiquetas.</p><button class="btn secondary" onclick="CJ.suggest()">Agregar etiquetas sugeridas</button>') +
+    return '<div class="panel"><h3>📲 Cuentas para transferencias</h3>' + C.accounts.map(n => '<div class="cj-row"><b>' + esc(n) + '</b><button class="cj-ico" onclick="CJ.delAcc(\'' + esc(n) + '\')">🗑</button></div>').join('') + '<div class="cj-row cj-add"><input id="aName" placeholder="Nueva cuenta (ej: Bancolombia)"><button class="btn" onclick="CJ.addAcc()">Agregar</button></div></div>' +
+      '<div class="panel"><h3>🏷️ Etiquetas</h3>' + (C.tags.length ? C.tags.map(tagRow).join('') : '<p class="hint">Aún no hay etiquetas.</p><button class="btn secondary" onclick="CJ.suggest()">Agregar etiquetas sugeridas</button>') +
       '<div class="cj-row cj-add"><input id="tName" placeholder="Nueva etiqueta"><select id="tType"><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select><input id="tColor" type="color" value="' + COLORS[C.tags.length % COLORS.length] + '"><button class="btn" onclick="CJ.addTag()">Agregar</button></div></div>' +
       '<div class="panel"><h3>🚚 Proveedores</h3>' + (C.provs.length ? C.provs.map(p => '<div class="cj-row cj-edit"><input value="' + esc(p.name) + '" onchange="CJ.provSet(\'' + p.id + '\',\'name\',this.value)"><input placeholder="Teléfono" inputmode="tel" value="' + esc(p.phone || '') + '" onchange="CJ.provSet(\'' + p.id + '\',\'phone\',this.value)"><select onchange="CJ.provSet(\'' + p.id + '\',\'tag\',this.value)">' + opt(C.tags.filter(t => t.type === 'gasto'), p.tag, 'Etiqueta por defecto') + '</select><button class="cj-ico" onclick="CJ.delProv(\'' + p.id + '\')">🗑</button></div>').join('') : '<p class="hint">Aún no hay proveedores.</p>') +
       '<div class="cj-row cj-add"><input id="pName" placeholder="Nuevo proveedor"><input id="pPhone" placeholder="Teléfono" inputmode="tel"><button class="btn" onclick="CJ.addProv()">Agregar</button></div></div>' +
@@ -202,7 +236,7 @@
     '.cj-seg{display:flex;gap:6px;margin-bottom:10px}.cj-seg button{flex:1;padding:11px;border-radius:12px;border:1px solid var(--l);background:#fff;font-weight:900}.cj-seg .on.neg{background:#a12a1c;color:#fff}.cj-seg .on.pos{background:#387b52;color:#fff}' +
     '.cj-scroll{overflow:auto}.cj-table{width:100%;border-collapse:collapse;font-size:13px;min-width:480px}.cj-table td,.cj-table th{padding:8px 6px;border-bottom:1px solid var(--l);text-align:right}.cj-table td:first-child,.cj-table th:first-child{text-align:left}.cj-table tr{cursor:pointer}.cj-table tr.on{background:#fff0dc}' +
     '.cj-bar{margin:8px 0}.cj-bl{display:flex;justify-content:space-between;gap:8px;font-size:14px}.cj-bl i,.cj-dot{display:inline-block;width:10px;height:10px;border-radius:99px;margin-right:6px}.cj-bl em{color:var(--m);font-style:normal;font-weight:600;font-size:12px}.cj-bt{background:#f3e6d6;border-radius:99px;height:10px;margin-top:4px;overflow:hidden}.cj-bt div{height:100%;border-radius:99px}.cj-due{border-color:#f47721;background:#fff6ea}.cj-click{cursor:pointer;padding:8px;margin:4px -8px;border-radius:12px}.cj-click:hover,.cj-click:active{background:#fff0dc}.cj-go{display:block;text-align:right;font-size:12px;font-weight:800;color:#f47721;margin-top:3px}' +
-    '.cj-sum{border:2px dashed #f47721;background:#fff6ea}@media(max-width:600px){.cj-quick{grid-template-columns:1fr}.cj-field input{font-size:20px}}';
+    '.cj-sum{border:2px dashed #f47721;background:#fff6ea}.cj-card.ok{background:#e6f2ea}.cj-card.ok b{color:#1f6b3a}.cj-trs{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}.cj-tri{display:flex;flex-direction:column;gap:4px;font-weight:800}.cj-tri input{font-size:18px;font-weight:800;padding:9px;border-radius:10px;border:1px solid var(--l);background:#fff3df}.cj-cierre h3{margin:16px 0 6px}.cj-cl{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--l)}.cj-cl.sub{padding-left:14px;font-size:14px;color:var(--m)}.cj-cl.tot{font-weight:900;border-bottom:0}.cj-cl.neg b{color:#a12a1c}.cj-cl em{color:var(--m);font-style:normal;font-weight:600;font-size:12px;margin-left:6px}.cj-chk{border-radius:14px;padding:12px;margin:10px 0;font-weight:800}.cj-chk.ok{background:#e6f2ea;border:2px solid #387b52;color:#1f6b3a}.cj-chk.bad{background:#fbe3df;border:2px solid #a12a1c;color:#8c1d18}.cj-chk.info{background:#fff6ea;border:2px solid #f47721;color:#6b3410}.cj-chk small{font-weight:600}@media(max-width:600px){.cj-quick{grid-template-columns:1fr}.cj-field input{font-size:20px}}';
 
   function render() {
     const C = st();
@@ -229,6 +263,19 @@
     per: p => { per = p; rr(); }, from: v => { from = v; rr(); }, to: v => { to = v; rr(); },
     fTag: v => { fTag = v; rr(); }, fProv: v => { fProv = v; rr(); }, sort: v => { sort = v; rr(); },
     type: t => { if (editId) { const e = st().tx.find(x => x.id === editId); if (e) e.type = t; } txType = t; rr(); },
+    oneDay: d => { if (d) { oneDay = d; rr(); } },
+    oneShift: n => { oneDay = addDays(oneDay, n); rr(); },
+    setTr: (n, v) => {
+      const C = st(), x = (C.days[date] ||= {});
+      x.tr ||= {};
+      if (v === '') delete x.tr[n]; else x.tr[n] = num(v);
+      if (!Object.keys(x.tr).length) delete x.tr;
+      if (!Object.keys(x).filter(z => z !== 'dp').length) delete C.days[date];
+      const el = document.getElementById('cjCalc'); if (el) el.innerHTML = calcDay(C);
+      saveSoon();
+    },
+    addAcc: () => { const C = st(), n = document.getElementById('aName').value.trim().replace(/'/g, ''); if (!n || C.accounts.includes(n)) return; C.accounts.push(n); commit(); },
+    delAcc: n => { const C = st(); if (!confirm('¿Quitar la cuenta ' + n + '? Lo ya anotado se conserva en los reportes.')) return; C.accounts = C.accounts.filter(x => x !== n); commit(); },
     setDay: (k, v) => {
       const C = st(), x = (C.days[date] ||= {});
       if (v === '') delete x[k]; else x[k] = num(v);

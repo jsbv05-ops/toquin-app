@@ -288,7 +288,7 @@
   const canProduce=()=>['admin','produccion'].includes(profile?.role);
   const canSeeReports=()=>['admin','toquijefa','toquijefe'].includes(profile?.role);
   let prodUnread=0,prodChannel=null;
-  (function(){if(document.getElementById('prodCss'))return;const st=document.createElement('style');st.id='prodCss';st.textContent='.thumbs{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.thumbs img{width:78px;height:78px;object-fit:cover;border-radius:10px;border:1px solid #ead9c6}.prod-res{border-radius:14px;padding:12px 14px;margin:10px 0;font-weight:700}.prod-res.ok{background:#e9f6e6;border:2px solid #1f7a3a;color:#145228}.prod-res.bad{background:#fdeceb;border:2px solid #b3261e;color:#8c1d18}.prod-line{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed #ead9c6}.prod-line.total{font-weight:900;border-bottom:0}.photo-btn{display:inline-block;margin:4px 0}.prod-sec h3{margin:14px 0 4px}#prodToast{position:fixed;left:12px;right:12px;bottom:16px;z-index:999;background:#39251c;color:#fff;border-radius:14px;padding:14px;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.25);cursor:pointer}';document.head.appendChild(st);})();
+  (function(){if(document.getElementById('prodCss'))return;const st=document.createElement('style');st.id='prodCss';st.textContent='.thumbs{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.thumbs img{width:78px;height:78px;object-fit:cover;border-radius:10px;border:1px solid #ead9c6}.prod-res{border-radius:14px;padding:12px 14px;margin:10px 0;font-weight:700}.prod-res.ok{background:#e9f6e6;border:2px solid #1f7a3a;color:#145228}.prod-res.info{background:#fff6ea;border:2px solid #f47721;color:#7a3a0e}.prod-seg{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px}.prod-seg label{flex:1;min-width:140px;display:flex;gap:6px;align-items:center;border:1px solid #ead9c6;border-radius:12px;padding:9px;font-weight:800;background:#fff}.prod-seg input{width:18px;height:18px}.prod-res.bad{background:#fdeceb;border:2px solid #b3261e;color:#8c1d18}.prod-line{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed #ead9c6}.prod-line.total{font-weight:900;border-bottom:0}.photo-btn{display:inline-block;margin:4px 0}.prod-sec h3{margin:14px 0 4px}#prodToast{position:fixed;left:12px;right:12px;bottom:16px;z-index:999;background:#39251c;color:#fff;border-radius:14px;padding:14px;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.25);cursor:pointer}';document.head.appendChild(st);})();
   function setBadges(){document.querySelectorAll('[data-prod-badge]').forEach(e=>e.textContent=prodUnread?' ('+prodUnread+')':'');}
   async function refreshProdBadge(){
     if(!canSeeReports())return;
@@ -313,23 +313,33 @@
   }
   function prodCalc(sec,d){
     d=d||{};
+    if(sec.type==='meat'&&d.mode==='peso'){
+      const rec=pnum(d.llego),merma=pnum(d.merma),fin=pnum(d.final),loss=rec-merma-fin;
+      return {peso:true,rec,merma,fin,loss,ok:null};
+    }
     if(sec.type==='meat'){
       const rec=pnum(d.llego),merma=pnum(d.merma),x1=pnum(d.x1),x2=pnum(d.x2),clean=rec-merma,used=x1*P1+x2*P2,diff=used-clean;
-      return {rec,merma,x1,x2,clean,used,diff,ok:Math.abs(diff)<=Math.max(clean*0.02,1)};
+      return {rec,merma,x1,x2,clean,used,diff,ok:(used&&rec)?Math.abs(diff)<=Math.max(clean*0.02,1):null};
     }
     const rec=pnum(d.llego),packs=pnum(d.packs),used=packs*PACK,diff=used-rec;
-    return {rec,packs,used,diff,expected:rec/PACK,ok:Math.abs(diff)<=Math.max(rec*0.02,1)};
+    return {rec,packs,used,diff,expected:rec/PACK,ok:(packs&&rec)?Math.abs(diff)<=Math.max(rec*0.02,1):null};
   }
   function photoField(k,f,label){
-    return '<label class="field">'+label+'<input type="number" inputmode="decimal" min="0" step="any" data-p="'+k+'.'+f+'" placeholder="gramos"></label><label class="btn secondary photo-btn">📷 Foto de evidencia<input type="file" accept="image/*" multiple hidden data-f="'+k+'.'+f+'"></label><div class="thumbs" data-t="'+k+'.'+f+'"></div>';
+    return '<label class="field">'+label+'<input type="text" inputmode="decimal" autocomplete="off" data-p="'+k+'.'+f+'" placeholder="gramos"></label><label class="btn secondary photo-btn">📷 Foto de evidencia<input type="file" accept="image/*" multiple hidden data-f="'+k+'.'+f+'"></label><div class="thumbs" data-t="'+k+'.'+f+'"></div>';
   }
-  function countField(k,f,label){return '<label class="field">'+label+'<input type="number" inputmode="decimal" min="0" step="any" data-p="'+k+'.'+f+'" placeholder="cantidad"></label>';}
+  function countField(k,f,label){return '<label class="field">'+label+'<input type="text" inputmode="decimal" autocomplete="off" data-p="'+k+'.'+f+'" placeholder="cantidad"></label>';}
   function productionForm(container,onDone){
     container.dataset.view='form';
     const files={};
-    container.innerHTML='<h1>Producción</h1><p class="muted">Anota todo en gramos y adjunta la foto de evidencia. Llena solo lo que produjiste.</p>'+
-      PROD_SECTIONS.map(s=>box('<h2>'+s.icon+' '+s.title+'</h2>'+photoField(s.k,'llego','Lo que llegó (kg)').replace('placeholder="gramos"','placeholder="kilos, ej: 10,5"')+
-        (s.type==='meat'?photoField(s.k,'merma','Merma al limpiar (g)')+(s.only1?countField(s.k,'x1','Porciones x1 (80 g)'):'<div class="grid">'+countField(s.k,'x1','Porciones x1 (80 g)')+countField(s.k,'x2','Porciones x2 (160 g)')+'</div>'):countField(s.k,'packs','Paquetes x3 (480 g)')))).join('')+
+    const kgField=(k,f,l)=>photoField(k,f,l).replace('placeholder="gramos"','placeholder="kilos, ej: 10,5"');
+    container.innerHTML='<h1>Producción</h1><p class="muted">Nada es obligatorio: llena solo lo que hiciste hoy. Las fotos de evidencia también son opcionales.</p>'+
+      PROD_SECTIONS.map(s=>box('<h2>'+s.icon+' '+s.title+'</h2>'+
+        (s.type==='meat'?'<div class="prod-seg"><label><input type="radio" name="mode-'+s.k+'" value="porciones" checked> 🍽️ Sacó porciones</label><label><input type="radio" name="mode-'+s.k+'" value="peso"> ⚖️ Solo limpió / descongeló</label></div>':'')+
+        kgField(s.k,'llego','Lo que llegó (kg)'+(s.type==='meat'?' · congelado si viene así':''))+
+        (s.type==='meat'?photoField(s.k,'merma','Merma al limpiar (g)')+
+          '<div data-modebox="'+s.k+'-porciones">'+(s.only1?countField(s.k,'x1','Porciones x1 (80 g)'):'<div class="grid">'+countField(s.k,'x1','Porciones x1 (80 g)')+countField(s.k,'x2','Porciones x2 (160 g)')+'</div>')+'</div>'+
+          '<div data-modebox="'+s.k+'-peso" hidden>'+kgField(s.k,'final','Peso final limpio / descongelado (kg)')+'</div>'
+        :countField(s.k,'packs','Paquetes x3 (480 g)')))).join('')+
       '<label class="field">Nota (opcional)<textarea id="prodNote"></textarea></label><button class="btn" id="prodSend" style="width:100%;padding:14px">Enviar reporte</button><p class="hint" id="prodMsg"></p>';
     container.querySelectorAll('[data-f]').forEach(inp=>inp.onchange=()=>{
       const key=inp.dataset.f;files[key]=[...(files[key]||[]),...inp.files];inp.value='';
@@ -337,31 +347,27 @@
       t.innerHTML=files[key].map((f,i)=>'<span style="position:relative"><img src="'+URL.createObjectURL(f)+'"><button class="btn danger" style="position:absolute;top:2px;right:2px;padding:0 7px" data-rm="'+key+'|'+i+'">×</button></span>').join('');
       t.querySelectorAll('[data-rm]').forEach(b=>b.onclick=e=>{e.preventDefault();const [k,i]=b.dataset.rm.split('|');files[k].splice(+i,1);inp.dispatchEvent(new Event('change'));});
     });
+    container.querySelectorAll('input[type=radio][name^="mode-"]').forEach(rb=>rb.onchange=()=>{const k=rb.name.slice(5);container.querySelector('[data-modebox="'+k+'-porciones"]').hidden=rb.value!=='porciones';container.querySelector('[data-modebox="'+k+'-peso"]').hidden=rb.value!=='peso';});
     const msg=t=>{document.getElementById('prodMsg').textContent=t;};
     document.getElementById('prodSend').onclick=async()=>{
       const val=key=>container.querySelector('[data-p="'+key+'"]')?.value.trim()||'';
-      const data={},missing=[];
+      const data={};
       PROD_SECTIONS.forEach(s=>{
-        const fields=s.type==='meat'?(s.only1?['llego','merma','x1']:['llego','merma','x1','x2']):['llego','packs'];
-        const d={};fields.forEach(f=>{const v=val(s.k+'.'+f);if(v!=='')d[f]=f==='llego'?Math.round(pnum(v)*1000):pnum(v);});
-        if(!Object.keys(d).length)return;
-        if(!(d.llego>0))missing.push(s.title+': cuánto llegó');
-        if(!(files[s.k+'.llego']||[]).length)missing.push(s.title+': foto de lo que llegó');
-        if(s.type==='meat'){
-          if(d.merma==null)missing.push(s.title+': peso de la merma');
-          else if(d.merma>0&&!(files[s.k+'.merma']||[]).length)missing.push(s.title+': foto de la merma');
-          if(d.x1==null&&d.x2==null)missing.push(s.title+(s.only1?': porciones x1':': porciones x1 y x2'));
-        }else if(d.packs==null)missing.push(s.title+': paquetes x3');
+        const mode=s.type==='meat'?(container.querySelector('input[name="mode-'+s.k+'"]:checked')?.value||'porciones'):'';
+        const fields=s.type==='meat'?(mode==='peso'?['llego','merma','final']:(s.only1?['llego','merma','x1']:['llego','merma','x1','x2'])):['llego','packs'];
+        const d={};fields.forEach(f=>{const v=val(s.k+'.'+f);if(v!=='')d[f]=(f==='llego'||f==='final')?Math.round(pnum(v)*1000):pnum(v);});
+        const hasPhotos=fields.some(f=>(files[s.k+'.'+f]||[]).length);
+        if(!Object.keys(d).length&&!hasPhotos)return;
+        if(mode)d.mode=mode;
         data[s.k]=d;
       });
       if(!Object.keys(data).length)return msg('Llena al menos un producto.');
-      if(missing.length)return msg('Falta: '+missing.join(' · '));
       const btn=document.getElementById('prodSend');btn.disabled=true;
       try{
         const id=crypto.randomUUID(),photos={};let n=0;
-        const total=Object.entries(files).filter(([k])=>data[k.split('.')[0]]).reduce((a,[,v])=>a+v.length,0);
+        const total=Object.entries(files).filter(([k])=>data[k.split('.')[0]]).reduce((a,[,v])=>a+v.length,0)||1;
         for(const [key,list] of Object.entries(files)){
-          if(!data[key.split('.')[0]])continue;
+          const [sk,fk]=key.split('.');if(!data[sk]||(data[sk].mode==='peso'&&['x1','x2'].includes(fk))||(data[sk].mode==='porciones'&&fk==='final'))continue;
           photos[key]=[];
           for(const f of list){
             n++;btn.textContent='Subiendo fotos '+n+' de '+total+'…';
@@ -381,20 +387,28 @@
   }
   function line(l,v,cls){return '<div class="prod-line'+(cls?' '+cls:'')+'"><span>'+l+'</span><b>'+v+'</b></div>';}
   function sectionResult(s,d,r){
-    const c=prodCalc(s,d),ph=f=>'<div class="thumbs" data-ph="'+r.id+'|'+s.k+'.'+f+'"></div>';
-    let h='<div class="prod-sec"><h3>'+s.icon+' '+s.title+'</h3>';
+    const c=prodCalc(s,d),ph=f=>'<div class="thumbs" data-ph="'+r.id+'|'+s.k+'.'+f+'"></div>',has=f=>d&&d[f]!=null;
+    let h='<div class="prod-sec"><h3>'+s.icon+' '+s.title+(c.peso?' · limpieza / descongelado':'')+'</h3>';
+    if(c.peso){
+      h+=(has('llego')?line('Llegó (congelado)',kgs(c.rec)):'')+ph('llego')+(has('merma')?line('Merma al limpiar',gr(c.merma)+(c.rec?' · '+ppct(c.merma/c.rec):'')):'')+ph('merma')+(has('final')?line('Peso final limpio / descongelado',kgs(c.fin),'total'):'')+ph('final');
+      if(has('llego')&&has('final')){
+        h+=line('Pérdida al descongelar',gr(Math.max(c.loss,0))+' · '+ppct(c.rec?Math.max(c.loss,0)/c.rec:0));
+        h+='<div class="prod-res info">⚖️ Rendimiento: de '+kgs(c.rec)+' quedaron '+kgs(c.fin)+' ('+ppct(c.rec?c.fin/c.rec:0)+')</div>';
+      }
+      return h+'</div>';
+    }
     if(s.type==='meat'){
-      h+=line('Llegó',kgs(c.rec))+ph('llego')+line('Merma al limpiar',gr(c.merma)+' · '+ppct(c.rec?c.merma/c.rec:0))+ph('merma')+line('Carne limpia (llegó − merma)',gr(c.clean),'total')+
-        line('Porciones x1',nf(c.x1)+' × 80 g = '+gr(c.x1*P1))+(s.only1?'':line('Porciones x2',nf(c.x2)+' × 160 g = '+gr(c.x2*P2)))+line('Total porcionado',gr(c.used),'total');
-      h+='<div class="prod-res '+(c.ok?'ok':'bad')+'">'+(c.ok?'✅ Cuadra: porcionó '+gr(c.used)+' de '+gr(c.clean)+' limpios'+(Math.abs(c.diff)>=1?' (diferencia '+(c.diff>0?'+':'−')+gr(Math.abs(c.diff))+')':''):(c.diff<0?'⚠️ No cuadra: faltan '+gr(-c.diff)+' ('+ppct(c.clean?-c.diff/c.clean:0)+'). Quedaron '+gr(c.clean)+' limpios y solo se porcionaron '+gr(c.used)+'.':'⚠️ No cuadra: sobran '+gr(c.diff)+'. Se porcionó más de lo que quedó limpio ('+gr(c.clean)+').'))+'</div>';
+      h+=(has('llego')?line('Llegó',kgs(c.rec)):'')+ph('llego')+(has('merma')?line('Merma al limpiar',gr(c.merma)+(c.rec?' · '+ppct(c.merma/c.rec):'')):'')+ph('merma')+(has('llego')?line('Carne limpia (llegó − merma)',gr(c.clean),'total'):'')+
+        (has('x1')?line('Porciones x1',nf(c.x1)+' × 80 g = '+gr(c.x1*P1)):'')+(!s.only1&&has('x2')?line('Porciones x2',nf(c.x2)+' × 160 g = '+gr(c.x2*P2)):'')+(c.used?line('Total porcionado',gr(c.used),'total'):'');
+      if(c.ok!==null)h+='<div class="prod-res '+(c.ok?'ok':'bad')+'">'+(c.ok?'✅ Cuadra: porcionó '+gr(c.used)+' de '+gr(c.clean)+' limpios'+(Math.abs(c.diff)>=1?' (diferencia '+(c.diff>0?'+':'−')+gr(Math.abs(c.diff))+')':''):(c.diff<0?'⚠️ No cuadra: faltan '+gr(-c.diff)+' ('+ppct(c.clean?-c.diff/c.clean:0)+'). Quedaron '+gr(c.clean)+' limpios y solo se porcionaron '+gr(c.used)+'.':'⚠️ No cuadra: sobran '+gr(c.diff)+'. Se porcionó más de lo que quedó limpio ('+gr(c.clean)+').'))+'</div>';
     }else{
-      h+=line('Llegó',kgs(c.rec))+ph('llego')+line('Deberían salir',nf(c.expected)+' paquetes x3')+line('Paquetes x3 que salieron',nf(c.packs)+' × 480 g = '+gr(c.used),'total');
-      h+='<div class="prod-res '+(c.ok?'ok':'bad')+'">'+(c.ok?'✅ Cuadra: '+nf(c.packs)+' paquetes = '+gr(c.used)+' de '+gr(c.rec)+' que llegaron':(c.diff<0?'⚠️ No cuadra: faltan '+gr(-c.diff)+' (≈ '+nf(-c.diff/PACK)+' paquetes).':'⚠️ No cuadra: sobran '+gr(c.diff)+'. Salieron más paquetes de lo que alcanza con lo que llegó.'))+'</div>';
+      h+=(has('llego')?line('Llegó',kgs(c.rec))+line('Deberían salir',nf(c.expected)+' paquetes x3'):'')+ph('llego')+(has('packs')?line('Paquetes x3 que salieron',nf(c.packs)+' × 480 g = '+gr(c.used),'total'):'');
+      if(c.ok!==null)h+='<div class="prod-res '+(c.ok?'ok':'bad')+'">'+(c.ok?'✅ Cuadra: '+nf(c.packs)+' paquetes = '+gr(c.used)+' de '+gr(c.rec)+' que llegaron':(c.diff<0?'⚠️ No cuadra: faltan '+gr(-c.diff)+' (≈ '+nf(-c.diff/PACK)+' paquetes).':'⚠️ No cuadra: sobran '+gr(c.diff)+'. Salieron más paquetes de lo que alcanza con lo que llegó.'))+'</div>';
     }
     return h+'</div>';
   }
   function reportCard(r,open){
-    const secs=PROD_SECTIONS.filter(s=>r.data?.[s.k]),allOk=secs.every(s=>prodCalc(s,r.data[s.k]).ok);
+    const secs=PROD_SECTIONS.filter(s=>r.data?.[s.k]),allOk=secs.every(s=>prodCalc(s,r.data[s.k]).ok!==false);
     const when=new Date(r.created_at).toLocaleString('es-CO',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
     return '<section class="panel" data-rcard="'+r.id+'"><div class="row"><div><b>'+(allOk?'✅':'⚠️')+' Producción · '+h(when)+'</b><div class="hint">'+h(r.created_by_name||'')+' · '+secs.map(s=>s.title).join(', ')+'</div></div>'+(open?'':'<button class="btn secondary" data-ropen="'+r.id+'">Ver</button>')+'</div>'+
       (open?secs.map(s=>sectionResult(s,r.data[s.k],r)).join('')+(r.note?'<p class="hint">Nota: '+h(r.note)+'</p>':''):'')+'</section>';
