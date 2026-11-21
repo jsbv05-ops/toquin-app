@@ -277,7 +277,8 @@
   const PROD_SECTIONS=[
     {k:'res',title:'Carne',icon:'🥩',type:'meat'},
     {k:'pollo',title:'Pollo',icon:'🍗',type:'meat',only1:true},
-    {k:'burger',title:'Carne de burger',icon:'🍔',type:'burger'}
+    {k:'burger',title:'Carne de burger',icon:'🍔',type:'burger'},
+    {k:'lomo',title:'Lomo',icon:'🍖',type:'clean'}
   ];
   const P1=80,P2=160,PACK=480;
   const pnum=v=>{const x=Number(String(v??'').replace(',','.'));return Number.isFinite(x)?x:0};
@@ -313,6 +314,7 @@
   }
   function prodCalc(sec,d){
     d=d||{};
+    if(sec.type==='clean'){const rec=pnum(d.llego),merma=pnum(d.merma);return {cleanOnly:true,rec,merma,fin:rec-merma,ok:null};}
     if(sec.type==='meat'&&d.mode==='peso'){
       const rec=pnum(d.llego),merma=pnum(d.merma),fin=pnum(d.final),loss=rec-merma-fin;
       return {peso:true,rec,merma,fin,loss,ok:null};
@@ -335,11 +337,11 @@
     container.innerHTML='<h1>Producción</h1><p class="muted">Nada es obligatorio: llena solo lo que hiciste hoy. Las fotos de evidencia también son opcionales.</p>'+
       PROD_SECTIONS.map(s=>box('<h2>'+s.icon+' '+s.title+'</h2>'+
         (s.type==='meat'?'<div class="prod-seg"><label><input type="radio" name="mode-'+s.k+'" value="porciones" checked> 🍽️ Sacó porciones</label><label><input type="radio" name="mode-'+s.k+'" value="peso"> ⚖️ Solo limpió / descongeló</label></div>':'')+
-        kgField(s.k,'llego','Lo que llegó (kg)'+(s.type==='meat'?' · congelado si viene así':''))+
+        kgField(s.k,'llego',s.type==='clean'?'Peso total (kg)':'Lo que llegó (kg)'+(s.type==='meat'?' · congelado si viene así':''))+
         (s.type==='meat'?photoField(s.k,'merma','Merma al limpiar (g)')+
           '<div data-modebox="'+s.k+'-porciones">'+(s.only1?countField(s.k,'x1','Porciones x1 (80 g)'):'<div class="grid">'+countField(s.k,'x1','Porciones x1 (80 g)')+countField(s.k,'x2','Porciones x2 (160 g)')+'</div>')+'</div>'+
           '<div data-modebox="'+s.k+'-peso" hidden>'+kgField(s.k,'final','Peso final limpio / descongelado (kg)')+'</div>'
-        :countField(s.k,'packs','Paquetes x3 (480 g)')))).join('')+
+        :s.type==='clean'?photoField(s.k,'merma','Merma al limpiar (g)'):countField(s.k,'packs','Paquetes x3 (480 g)')))).join('')+
       '<label class="field">Nota (opcional)<textarea id="prodNote"></textarea></label><button class="btn" id="prodSend" style="width:100%;padding:14px">Enviar reporte</button><p class="hint" id="prodMsg"></p>';
     container.querySelectorAll('[data-f]').forEach(inp=>inp.onchange=()=>{
       const key=inp.dataset.f;files[key]=[...(files[key]||[]),...inp.files];inp.value='';
@@ -354,7 +356,7 @@
       const data={};
       PROD_SECTIONS.forEach(s=>{
         const mode=s.type==='meat'?(container.querySelector('input[name="mode-'+s.k+'"]:checked')?.value||'porciones'):'';
-        const fields=s.type==='meat'?(mode==='peso'?['llego','merma','final']:(s.only1?['llego','merma','x1']:['llego','merma','x1','x2'])):['llego','packs'];
+        const fields=s.type==='meat'?(mode==='peso'?['llego','merma','final']:(s.only1?['llego','merma','x1']:['llego','merma','x1','x2'])):s.type==='clean'?['llego','merma']:['llego','packs'];
         const d={};fields.forEach(f=>{const v=val(s.k+'.'+f);if(v!=='')d[f]=(f==='llego'||f==='final')?Math.round(pnum(v)*1000):pnum(v);});
         const hasPhotos=fields.some(f=>(files[s.k+'.'+f]||[]).length);
         if(!Object.keys(d).length&&!hasPhotos)return;
@@ -389,6 +391,11 @@
   function sectionResult(s,d,r){
     const c=prodCalc(s,d),ph=f=>'<div class="thumbs" data-ph="'+r.id+'|'+s.k+'.'+f+'"></div>',has=f=>d&&d[f]!=null;
     let h='<div class="prod-sec"><h3>'+s.icon+' '+s.title+(c.peso?' · limpieza / descongelado':'')+'</h3>';
+    if(c.cleanOnly){
+      h+=(has('llego')?line('Peso total',kgs(c.rec)):'')+ph('llego')+(has('merma')?line('Merma al limpiar',gr(c.merma)+(c.rec?' · '+ppct(c.merma/c.rec):'')):'')+ph('merma');
+      if(has('llego')&&has('merma'))h+=line('Lomo limpio (total − merma)',kgs(Math.max(c.fin,0)),'total')+'<div class="prod-res info">⚖️ Rendimiento: de '+kgs(c.rec)+' quedaron '+kgs(Math.max(c.fin,0))+' limpios ('+ppct(c.rec?Math.max(c.fin,0)/c.rec:0)+')</div>';
+      return h+'</div>';
+    }
     if(c.peso){
       h+=(has('llego')?line('Llegó (congelado)',kgs(c.rec)):'')+ph('llego')+(has('merma')?line('Merma al limpiar',gr(c.merma)+(c.rec?' · '+ppct(c.merma/c.rec):'')):'')+ph('merma')+(has('final')?line('Peso final limpio / descongelado',kgs(c.fin),'total'):'')+ph('final');
       if(has('llego')&&has('final')){
