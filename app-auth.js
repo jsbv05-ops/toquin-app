@@ -347,7 +347,7 @@
         (s.type==='meat'?photoField(s.k,'merma','Merma al limpiar (g)')+
           '<div data-modebox="'+s.k+'-porciones">'+(s.only1?countField(s.k,'x1','Porciones x1 (80 g)'):'<div class="grid">'+countField(s.k,'x1','Porciones x1 (80 g)')+countField(s.k,'x2','Porciones x2 (160 g)')+'</div>')+'</div>'+
           '<div data-modebox="'+s.k+'-peso" hidden>'+kgField(s.k,'final','Peso final limpio / descongelado (kg)')+'</div>'
-        :s.type==='clean'?photoField(s.k,'merma','Merma al limpiar (g)')+kgField(s.k,'final','Peso total limpio y porcionado (kg)'):countField(s.k,'packs','Paquetes x3 (480 g)')))).join('')+
+        :s.type==='clean'?countField(s.k,'merma','Merma al limpiar (g)').replace('placeholder="cantidad"','placeholder="gramos"')+kgField(s.k,'final','Peso total limpio y porcionado (kg)'):countField(s.k,'packs','Paquetes x3 (480 g)')))).join('')+
       '<label class="field">Nota (opcional)<textarea id="prodNote"></textarea></label><button class="btn" id="prodSend" style="width:100%;padding:14px">Enviar reporte</button><p class="hint" id="prodMsg"></p>';
     container.querySelectorAll('[data-f]').forEach(inp=>inp.onchange=()=>{
       const key=inp.dataset.f;files[key]=[...(files[key]||[]),...inp.files];inp.value='';
