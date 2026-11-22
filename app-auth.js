@@ -289,7 +289,7 @@
   const canProduce=()=>['admin','produccion'].includes(profile?.role);
   const canSeeReports=()=>['admin','toquijefa','toquijefe'].includes(profile?.role);
   let prodUnread=0,prodChannel=null;
-  (function(){if(document.getElementById('prodCss'))return;const st=document.createElement('style');st.id='prodCss';st.textContent='.thumbs{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.thumbs img{width:78px;height:78px;object-fit:cover;border-radius:10px;border:1px solid #ead9c6}.prod-res{border-radius:14px;padding:12px 14px;margin:10px 0;font-weight:700}.prod-res.ok{background:#e9f6e6;border:2px solid #1f7a3a;color:#145228}.prod-res.info{background:#fff6ea;border:2px solid #f47721;color:#7a3a0e}.prod-seg{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px}.prod-seg label{flex:1;min-width:140px;display:flex;gap:6px;align-items:center;border:1px solid #ead9c6;border-radius:12px;padding:9px;font-weight:800;background:#fff}.prod-seg input{width:18px;height:18px}.prod-res.bad{background:#fdeceb;border:2px solid #b3261e;color:#8c1d18}.prod-line{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed #ead9c6}.prod-line.total{font-weight:900;border-bottom:0}.photo-btn{display:inline-block;margin:4px 0}.prod-sec h3{margin:14px 0 4px}#prodToast{position:fixed;left:12px;right:12px;bottom:16px;z-index:999;background:#39251c;color:#fff;border-radius:14px;padding:14px;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.25);cursor:pointer}';document.head.appendChild(st);})();
+  (function(){if(document.getElementById('prodCss'))return;const st=document.createElement('style');st.id='prodCss';st.textContent='.thumbs{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.thumbs img{width:78px;height:78px;object-fit:cover;border-radius:10px;border:1px solid #ead9c6}.prod-res{border-radius:14px;padding:12px 14px;margin:10px 0;font-weight:700}.prod-res.ok{background:#e9f6e6;border:2px solid #1f7a3a;color:#145228}.prod-res.info{background:#fff6ea;border:2px solid #f47721;color:#7a3a0e}.prod-seg{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px}.prod-seg label{flex:1;min-width:140px;display:flex;gap:6px;align-items:center;border:1px solid #ead9c6;border-radius:12px;padding:9px;font-weight:800;background:#fff}.prod-seg input{width:18px;height:18px}.prod-pick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.prod-opt{display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 10px;border:2px solid #ead9c6;border-radius:18px;background:#fff;cursor:pointer;font-size:16px;text-align:center}.prod-opt .ico{font-size:40px;line-height:1}.prod-opt input{width:22px;height:22px}.prod-opt:has(input:checked){border-color:#f47721;background:#fff1dc;box-shadow:0 4px 12px rgba(244,119,33,.2)}.prod-res.bad{background:#fdeceb;border:2px solid #b3261e;color:#8c1d18}.prod-line{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed #ead9c6}.prod-line.total{font-weight:900;border-bottom:0}.photo-btn{display:inline-block;margin:4px 0}.prod-sec h3{margin:14px 0 4px}#prodToast{position:fixed;left:12px;right:12px;bottom:16px;z-index:999;background:#39251c;color:#fff;border-radius:14px;padding:14px;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.25);cursor:pointer}';document.head.appendChild(st);})();
   function setBadges(){document.querySelectorAll('[data-prod-badge]').forEach(e=>e.textContent=prodUnread?' ('+prodUnread+')':'');}
   async function refreshProdBadge(){
     if(!canSeeReports())return;
@@ -314,7 +314,7 @@
   }
   function prodCalc(sec,d){
     d=d||{};
-    if(sec.type==='clean'){const rec=pnum(d.llego),merma=pnum(d.merma);return {cleanOnly:true,rec,merma,fin:rec-merma,ok:null};}
+    if(sec.type==='clean'){const rec=pnum(d.llego),merma=pnum(d.merma),fin=pnum(d.final);return {cleanOnly:true,rec,merma,fin,loss:rec-merma-fin,ok:null};}
     if(sec.type==='meat'&&d.mode==='peso'){
       const rec=pnum(d.llego),merma=pnum(d.merma),fin=pnum(d.final),loss=rec-merma-fin;
       return {peso:true,rec,merma,fin,loss,ok:null};
@@ -330,18 +330,24 @@
     return '<label class="field">'+label+'<input type="text" inputmode="decimal" autocomplete="off" data-p="'+k+'.'+f+'" placeholder="gramos"></label><label class="btn secondary photo-btn">📷 Foto de evidencia<input type="file" accept="image/*" multiple hidden data-f="'+k+'.'+f+'"></label><div class="thumbs" data-t="'+k+'.'+f+'"></div>';
   }
   function countField(k,f,label){return '<label class="field">'+label+'<input type="text" inputmode="decimal" autocomplete="off" data-p="'+k+'.'+f+'" placeholder="cantidad"></label>';}
-  function productionForm(container,onDone){
+  function productionForm(container,onDone,sel){
+    if(!sel){
+      container.dataset.view='pick';
+      container.innerHTML='<h1>Producción de hoy</h1><p class="muted">¿Qué vas a producir hoy? Elige uno o varios.</p><div class="prod-pick">'+PROD_SECTIONS.map(s=>'<label class="prod-opt"><input type="checkbox" value="'+s.k+'"><span class="ico">'+s.icon+'</span><b>'+s.title+'</b></label>').join('')+'</div><button class="btn" id="prodGo" style="width:100%;padding:14px;margin-top:14px">Continuar</button><p class="hint" id="prodPickMsg"></p>';
+      document.getElementById('prodGo').onclick=()=>{const v=[...container.querySelectorAll('.prod-opt input:checked')].map(i=>i.value);if(!v.length){document.getElementById('prodPickMsg').textContent='Elige al menos un producto.';return;}productionForm(container,onDone,v);};
+      return;
+    }
     container.dataset.view='form';
     const files={};
     const kgField=(k,f,l)=>photoField(k,f,l).replace('placeholder="gramos"','placeholder="kilos, ej: 10,5"');
-    container.innerHTML='<h1>Producción</h1><p class="muted">Nada es obligatorio: llena solo lo que hiciste hoy. Las fotos de evidencia también son opcionales.</p>'+
-      PROD_SECTIONS.map(s=>box('<h2>'+s.icon+' '+s.title+'</h2>'+
+    container.innerHTML='<div class="row"><h1>Producción</h1><button class="btn secondary" id="prodPick">← Cambiar productos</button></div><p class="muted">Nada es obligatorio: llena solo lo que hiciste hoy. Las fotos de evidencia también son opcionales.</p>'+
+      PROD_SECTIONS.filter(s=>sel.includes(s.k)).map(s=>box('<h2>'+s.icon+' '+s.title+'</h2>'+
         (s.type==='meat'?'<div class="prod-seg"><label><input type="radio" name="mode-'+s.k+'" value="porciones" checked> 🍽️ Sacó porciones</label><label><input type="radio" name="mode-'+s.k+'" value="peso"> ⚖️ Solo limpió / descongeló</label></div>':'')+
-        kgField(s.k,'llego',s.type==='clean'?'Peso total (kg)':'Lo que llegó (kg)'+(s.type==='meat'?' · congelado si viene así':''))+
+        kgField(s.k,'llego','Lo que llegó (kg)'+(s.type==='meat'?' · congelado si viene así':''))+
         (s.type==='meat'?photoField(s.k,'merma','Merma al limpiar (g)')+
           '<div data-modebox="'+s.k+'-porciones">'+(s.only1?countField(s.k,'x1','Porciones x1 (80 g)'):'<div class="grid">'+countField(s.k,'x1','Porciones x1 (80 g)')+countField(s.k,'x2','Porciones x2 (160 g)')+'</div>')+'</div>'+
           '<div data-modebox="'+s.k+'-peso" hidden>'+kgField(s.k,'final','Peso final limpio / descongelado (kg)')+'</div>'
-        :s.type==='clean'?photoField(s.k,'merma','Merma al limpiar (g)'):countField(s.k,'packs','Paquetes x3 (480 g)')))).join('')+
+        :s.type==='clean'?photoField(s.k,'merma','Merma al limpiar (g)')+kgField(s.k,'final','Peso total limpio y porcionado (kg)'):countField(s.k,'packs','Paquetes x3 (480 g)')))).join('')+
       '<label class="field">Nota (opcional)<textarea id="prodNote"></textarea></label><button class="btn" id="prodSend" style="width:100%;padding:14px">Enviar reporte</button><p class="hint" id="prodMsg"></p>';
     container.querySelectorAll('[data-f]').forEach(inp=>inp.onchange=()=>{
       const key=inp.dataset.f;files[key]=[...(files[key]||[]),...inp.files];inp.value='';
@@ -350,13 +356,14 @@
       t.querySelectorAll('[data-rm]').forEach(b=>b.onclick=e=>{e.preventDefault();const [k,i]=b.dataset.rm.split('|');files[k].splice(+i,1);inp.dispatchEvent(new Event('change'));});
     });
     container.querySelectorAll('input[type=radio][name^="mode-"]').forEach(rb=>rb.onchange=()=>{const k=rb.name.slice(5);container.querySelector('[data-modebox="'+k+'-porciones"]').hidden=rb.value!=='porciones';container.querySelector('[data-modebox="'+k+'-peso"]').hidden=rb.value!=='peso';});
+    document.getElementById('prodPick').onclick=()=>productionForm(container,onDone);
     const msg=t=>{document.getElementById('prodMsg').textContent=t;};
     document.getElementById('prodSend').onclick=async()=>{
       const val=key=>container.querySelector('[data-p="'+key+'"]')?.value.trim()||'';
       const data={};
       PROD_SECTIONS.forEach(s=>{
         const mode=s.type==='meat'?(container.querySelector('input[name="mode-'+s.k+'"]:checked')?.value||'porciones'):'';
-        const fields=s.type==='meat'?(mode==='peso'?['llego','merma','final']:(s.only1?['llego','merma','x1']:['llego','merma','x1','x2'])):s.type==='clean'?['llego','merma']:['llego','packs'];
+        const fields=s.type==='meat'?(mode==='peso'?['llego','merma','final']:(s.only1?['llego','merma','x1']:['llego','merma','x1','x2'])):s.type==='clean'?['llego','merma','final']:['llego','packs'];
         const d={};fields.forEach(f=>{const v=val(s.k+'.'+f);if(v!=='')d[f]=(f==='llego'||f==='final')?Math.round(pnum(v)*1000):pnum(v);});
         const hasPhotos=fields.some(f=>(files[s.k+'.'+f]||[]).length);
         if(!Object.keys(d).length&&!hasPhotos)return;
@@ -392,8 +399,11 @@
     const c=prodCalc(s,d),ph=f=>'<div class="thumbs" data-ph="'+r.id+'|'+s.k+'.'+f+'"></div>',has=f=>d&&d[f]!=null;
     let h='<div class="prod-sec"><h3>'+s.icon+' '+s.title+(c.peso?' · limpieza / descongelado':'')+'</h3>';
     if(c.cleanOnly){
-      h+=(has('llego')?line('Peso total',kgs(c.rec)):'')+ph('llego')+(has('merma')?line('Merma al limpiar',gr(c.merma)+(c.rec?' · '+ppct(c.merma/c.rec):'')):'')+ph('merma');
-      if(has('llego')&&has('merma'))h+=line('Lomo limpio (total − merma)',kgs(Math.max(c.fin,0)),'total')+'<div class="prod-res info">⚖️ Rendimiento: de '+kgs(c.rec)+' quedaron '+kgs(Math.max(c.fin,0))+' limpios ('+ppct(c.rec?Math.max(c.fin,0)/c.rec:0)+')</div>';
+      h+=(has('llego')?line('Llegó',kgs(c.rec)):'')+ph('llego')+(has('merma')?line('Merma al limpiar',gr(c.merma)+(c.rec?' · '+ppct(c.merma/c.rec):'')):'')+ph('merma')+(has('final')?line('Peso total limpio y porcionado',kgs(c.fin),'total'):'')+ph('final');
+      if(has('llego')&&has('final')){
+        if(has('merma'))h+=line('Diferencia (llegó − merma − peso total)',gr(c.loss)+' · '+ppct(c.rec?c.loss/c.rec:0));
+        h+='<div class="prod-res info">⚖️ Rendimiento: de '+kgs(c.rec)+' quedaron '+kgs(c.fin)+' limpios y porcionados ('+ppct(c.rec?c.fin/c.rec:0)+')</div>';
+      }else if(has('llego')&&has('merma')&&!has('final'))h+=line('Limpio (llegó − merma)',kgs(Math.max(c.rec-c.merma,0)),'total');
       return h+'</div>';
     }
     if(c.peso){
